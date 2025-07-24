@@ -53,11 +53,12 @@ echo -e "\n🔨 Criando commit..."
 git commit -m "$mensagem"
 check_error
 
-# Push com confirmação (tratando Enter como "não")
-read -p "🚀 Enviar para o repositório remoto (Github)? [s/N] " -n 1 -r
+# Push com confirmação (tratando Enter como "sim")
+read -p "🚀 Enviar para o repositório remoto (Github)? [S/n] " -n 1 -r
 echo
 
-if [[ "$REPLY" =~ ^[Ss]$ ]]; then
+# Se REPLY estiver vazio (Enter), ou for s/S/y/Y, então envia
+if [[ -z "$REPLY" || "$REPLY" =~ ^[SsYy]$ ]]; then
     echo -e "\n🌐 Enviando alterações..."
     git push
     if [ $? -eq 0 ]; then
