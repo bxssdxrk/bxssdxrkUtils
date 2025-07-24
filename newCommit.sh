@@ -54,7 +54,7 @@ git commit -m "$mensagem"
 check_error
 
 # Push com confirmação (tratando Enter como "não")
-read -p "🚀 Enviar para o repositório remoto? [s/N] " -n 1 -r
+read -p "🚀 Enviar para o repositório remoto (Github)? [s/N] " -n 1 -r
 echo
 
 if [[ "$REPLY" =~ ^[Ss]$ ]]; then
