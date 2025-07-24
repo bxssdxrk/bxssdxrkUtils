@@ -297,23 +297,23 @@ function registerEvents() {
   socket.ev.on("call", async (calls) => {
     const rejectGroupCall = config.REJEITAR_CHAMADAS_EM_GRUPOS;
     const rejectPrivateCall = config.REJEITAR_CHAMADAS_PRIVADAS;
-    const rejectPrivateList = config.REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS;
+    const rejectSpecificPrivateCallListt = config.REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS;
   
     for (const call of calls) {
       const { from, id, isGroup, status } = call;
       const fromNumber = onlyNumbers(from);
-      const isPrivateException = rejectPrivateList.includes(fromNumber);
+      const rejectSpecificPrivate = rejectSpecificPrivateCallListt.includes(fromNumber);
   
       const shouldReject =
         (isGroup && rejectGroupCall) ||
-        (!isGroup && rejectPrivateCall && !isPrivateException);
+        (!isGroup && rejectPrivateCall || !isGroup && rejectSpecificPrivate);
   
       if ((status === "offer" || status === "ringing") && shouldReject) {
         try {
           await socket.rejectCall(id, from, []);
-          bxssdxrkLog(`Ligação rejeitada: ${from}`, "rejectCall", "success");
+          bxssdxrkLog(`Ligação rejeitada: ${fromNumber}`, "rejectCall", "success");
         } catch (err) {
-          bxssdxrkLog(`Erro ao rejeitar chamada de: ${from}`, "rejectCall", "error");
+          bxssdxrkLog(`Erro ao rejeitar chamada de: ${fromNumber}`, "rejectCall", "error");
           console.error(err);
         }
       }
