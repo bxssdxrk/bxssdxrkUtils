@@ -1,0 +1,19 @@
+{
+  "author": "bxssdxrk.",
+  "name": "bxssdxrkUtils",
+  "version": "1.0.1",
+  "description": "Conjunto de funções úteis pra usar no zapzap :3",
+  "main": "./src/index.js",
+  "scripts": {
+    "start": "bash start.sh",
+    "commit": "bash newCommit.sh",
+    "bxssdxrkUtils": "node ./src/index.js"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {
+    "@itsukichan/baileys": "^7.3.1",
+    "node-cache": "^5.1.2",
+    "pino": "^9.7.0"
+  }
+}
