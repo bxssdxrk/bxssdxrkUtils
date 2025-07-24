@@ -280,23 +280,29 @@ async function saveProfilePicture(mediaMsg, senderJid) {
 }
 
 async function rejectCall(call) {
-  const rejectGroupCall = config.REJEITAR_CHAMADAS_EM_GRUPOS;
-  const rejectPrivateCall = config.REJEITAR_CHAMADAS_PRIVADAS;
-  const rejectSpecificPrivateCallListt = config.REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS;
-  
-  const { from, id, isGroup, status } = call;
+  const { REJEITAR_CHAMADAS_EM_GRUPOS, REJEITAR_CHAMADAS_PRIVADAS, REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS, REJEITAR_CHAMADAS_DE_VIDEO, REJEITAR_CHAMADAS_DE_VOZ } = config;
+
+  const { from, id, isGroup, status, isVideo } = call;
   const fromNumber = onlyNumbers(from);
-  const rejectSpecificPrivate = rejectSpecificPrivateCallListt.includes(fromNumber);
-  
+  const rejectSpecificPrivate = REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS.includes(fromNumber);
+
+  const isVideoCall = !!isVideo;
+  const isVoiceCall = !isVideoCall;
+
+  const shouldRejectCallType =
+    (isVideoCall && REJEITAR_CHAMADAS_DE_VIDEO) ||
+    (isVoiceCall && REJEITAR_CHAMADAS_DE_VOZ);
+    
   const shouldReject =
-  (!isGroup && rejectPrivateCall || 
-   (isGroup && rejectGroupCall) ||
-   !isGroup && rejectSpecificPrivate);
-  
-  if ((status === "offer" || status === "ringing") && shouldReject) {
+    (isGroup && REJEITAR_CHAMADAS_EM_GRUPOS) ||
+    (!isGroup && (REJEITAR_CHAMADAS_PRIVADAS || rejectSpecificPrivate));
+
+    console.log("shouldReject:", shouldReject)
+    console.log("shouldRejectCallType:", shouldRejectCallType)
+  if ((status === "offer" || status === "ringing") && (shouldReject || shouldRejectCallType)) {
     try {
       await socket.rejectCall(id, from, []);
-      bxssdxrkLog(`Ligação rejeitada: ${fromNumber}`, "rejectCall", "success");
+      bxssdxrkLog(`Chamada de ${isVideoCall ? "vídeo" : "voz"} de ${fromNumber} rejeitada.`, "rejectCall", "success");
     } catch (err) {
       bxssdxrkLog(`Erro ao rejeitar chamada de: ${fromNumber}\n${err}`, "rejectCall", "error");
     }

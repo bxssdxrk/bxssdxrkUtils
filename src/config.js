@@ -11,10 +11,16 @@ exports.config = {
   SALVAR_STATUS_RESPONDENDO: false,
   
   // Salvar o status curtindo o status
-  SALVAR_STATUS_CURTINDO: true,
+  SALVAR_STATUS_CURTINDO: false,
   
   // Rejeitar ligações de grupos automaticamente
-  REJEITAR_CHAMADAS_EM_GRUPOS: true,
+  REJEITAR_CHAMADAS_EM_GRUPOS: false,
+  
+  // Rejeitar ligações de video automaticamente
+  REJEITAR_CHAMADAS_DE_VIDEO: false,
+  
+  // Rejeitar ligações de voz automaticamente
+  REJEITAR_CHAMADAS_DE_VOZ: false,
   
   // Rejeitar ligações de contatos automaticamente
   REJEITAR_CHAMADAR_PRIVADAS: false,
