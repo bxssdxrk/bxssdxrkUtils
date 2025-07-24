@@ -5,7 +5,7 @@ exports.config = {
   SEU_NUMERO: "",
   
   // Emoji ao curtir status automaticamente (Deixe vazio entre as aspas para desligar)
-  AUTO_CURTIR_STATUS: "🔥",
+  AUTO_CURTIR_STATUS: "", // O padrão é "💚"
   
   // Salvar status respondendo ao status
   SALVAR_STATUS_RESPONDENDO: false,
@@ -21,10 +21,8 @@ exports.config = {
   
   // Rejeitar ligações de contatos especificos automaticamente
   REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS: [
-    "555199998888",
-    "555177776666",
-    "556999280026",
-    "555155554444"
+    "555199998888",   // Alguns números de exemplo
+    "555155554444"    // Alguns números de exemplo
   ],
   
   DATABASE_DIR: path.resolve(__dirname, "..", "database")

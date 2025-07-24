@@ -63,6 +63,7 @@ const store = createStore();
 
 const BASE_DIR = "/storage/emulated/0/Download/bxssdxrkUtils";
 let socket = null;
+let autoLiked = false;
 let eventsRegistered = false;
   
 function ensureDir(dirPath) {
@@ -211,14 +212,17 @@ async function saveStatus(webMessage) {
   const saveStatusReplying = config.SALVAR_STATUS_RESPONDENDO;
   
   if (!key?.fromMe || !msg) return;
-  
   const contextInfo = Object.values(msg).find(v => v?.contextInfo)?.contextInfo;
-  
   const userJid = key.participant || webMessage?.participant || remoteJid;
   const isStatus = msg?.broadcast || remoteJid === "status@broadcast" || contextInfo?.remoteJid === "status@broadcast";
   const isReaction = msg?.reactionMessage?.text;
   
   if (!isStatus) return;
+  
+  if (autoLiked) {
+    autoLiked = false;
+    return;
+  }
   
   try {
   if (isReaction && saveStatusLiking) {
@@ -275,6 +279,52 @@ async function saveProfilePicture(mediaMsg, senderJid) {
   return await saveMedia(mediaObj, senderJid, "Fotos de Perfil", "profilePic");
 }
 
+async function rejectCall(call) {
+  const rejectGroupCall = config.REJEITAR_CHAMADAS_EM_GRUPOS;
+  const rejectPrivateCall = config.REJEITAR_CHAMADAS_PRIVADAS;
+  const rejectSpecificPrivateCallListt = config.REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS;
+  
+  const { from, id, isGroup, status } = call;
+  const fromNumber = onlyNumbers(from);
+  const rejectSpecificPrivate = rejectSpecificPrivateCallListt.includes(fromNumber);
+  
+  const shouldReject =
+  (!isGroup && rejectPrivateCall || 
+   (isGroup && rejectGroupCall) ||
+   !isGroup && rejectSpecificPrivate);
+  
+  if ((status === "offer" || status === "ringing") && shouldReject) {
+    try {
+      await socket.rejectCall(id, from, []);
+      bxssdxrkLog(`Ligação rejeitada: ${fromNumber}`, "rejectCall", "success");
+    } catch (err) {
+      bxssdxrkLog(`Erro ao rejeitar chamada de: ${fromNumber}\n${err}`, "rejectCall", "error");
+    }
+  }
+}
+
+async function autoLikeStatus(webMessage) {
+  const key = webMessage?.key;
+  const { remoteJid, fromMe, participant } = key || {};
+  const userJid = participant || webMessage?.participant || remoteJid;
+  const isStatus = webMessage.message?.broadcast || remoteJid === "status@broadcast";
+  const isReaction = Boolean(webMessage?.message?.reactionMessage);
+  const ownJid = socket?.user?.id;
+  const emoji = config.AUTO_CURTIR_STATUS;
+  
+  if (!emoji || !key || !userJid || !ownJid || !isStatus || fromMe || isReaction) return;
+  autoLiked = true;
+  await socket.sendMessage(remoteJid, {
+    react: { 
+      key, 
+      text: emoji,
+      senderTimestampMs: Date.now() // Dá pra colocar datas do passado/futuro aqui :3
+    },
+  }, {
+    statusJidList: [userJid, ownJid],
+  });
+}
+
 // ==============================
 // REGISTRAR EVENTOS INTERNAMENTE
 // ==============================
@@ -288,35 +338,15 @@ function registerEvents() {
       await store.saveMessage(remoteJid, webMessage)
       await store.saveStatus(remoteJid, webMessage)
       await saveViewOnce(webMessage);
+      await autoLikeStatus(webMessage);
       await saveStatus(webMessage);
     }
-    
   });
   
 
   socket.ev.on("call", async (calls) => {
-    const rejectGroupCall = config.REJEITAR_CHAMADAS_EM_GRUPOS;
-    const rejectPrivateCall = config.REJEITAR_CHAMADAS_PRIVADAS;
-    const rejectSpecificPrivateCallListt = config.REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS;
-  
     for (const call of calls) {
-      const { from, id, isGroup, status } = call;
-      const fromNumber = onlyNumbers(from);
-      const rejectSpecificPrivate = rejectSpecificPrivateCallListt.includes(fromNumber);
-  
-      const shouldReject =
-        (isGroup && rejectGroupCall) ||
-        (!isGroup && rejectPrivateCall || !isGroup && rejectSpecificPrivate);
-  
-      if ((status === "offer" || status === "ringing") && shouldReject) {
-        try {
-          await socket.rejectCall(id, from, []);
-          bxssdxrkLog(`Ligação rejeitada: ${fromNumber}`, "rejectCall", "success");
-        } catch (err) {
-          bxssdxrkLog(`Erro ao rejeitar chamada de: ${fromNumber}`, "rejectCall", "error");
-          console.error(err);
-        }
-      }
+      await rejectCall(call);
     }
   });
 
