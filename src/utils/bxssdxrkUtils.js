@@ -42,13 +42,25 @@
  * GitHub: https://github.com/bxssdxrk
  * Data de criação: 21/07/2025
  * 
- * Ah, no fim do arquivo, deixei um exemplo de uso :3
  */
 
 const fs = require("fs");
 const path = require("path");
+const { downloadContentFromMessage } = require("@itsukichan/baileys");
 const { writeFile } = require("fs/promises");
-const { config } = require("../config");
+const { 
+  savedFilesDir,
+  autoLikeStatusEmoji,
+  saveStatusByReply,
+  saveStatusByLike,
+  arrangeByNumber,
+  rejectGroupCalls,
+  rejectVideoCall,
+  rejectVoiceCall,
+  rejectPrivateCall,
+  rejectSpecificPrivateCalls,
+  timeoutByEvent,
+} = require(`${BASE_DIR}/config`);
 const { 
   groupCache,
   setGroupMetadata,
@@ -58,11 +70,12 @@ const {
   flushGroupCache,
   isGroupCacheEmpty
 } = require("./groupCache");
+const { createHelpers } = require("./commonFunctions");
+const { bxssdxrkLog, onlyNumbers } = require(".");
+
 const createStore = require("./store");
 const store = createStore();
 
-const BASE_DIR = "/storage/emulated/0/Download/bxssdxrkUtils";
-let socket = null;
 let autoLiked = false;
 let eventsRegistered = false;
   
@@ -70,43 +83,11 @@ function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
 }
 
-const bxssdxrkLog = (message, type = "log", status = "info") => {
-  const colorMap = {
-    error:   "\x1b[1;31m", // vermelho (bold red)
-    success: "\x1b[1;32m", // verde (bold green)
-    warn:    "\x1b[1;33m", // amarelo (bold yellow)
-    info:    "\x1b[1;34m", // azul (bold blue)
-    debug:   "\x1b[1;35m", // magenta (bold magenta)
-    trace:   "\x1b[1;36m", // ciano (bold cyan)
-    neutral: "\x1b[1;37m", // branco (bold white)
-  };
-  const color = colorMap[status] || "\x1b[1;37m";
-  const label = `${color}[bxssdxrkUtils. | ${type}]\x1b[0m`;
-  console.log(`${label} ${message}`);
-};
-
-function importFromModules(functionName, modules) {
-  for (const moduleName of modules) {
-    try {
-      const mod = require(moduleName);
-      if (mod?.[functionName]) {
-        return mod[functionName];
-      }
-    } catch (err) {}
-  }
-  bxssdxrkLog(`Nenhum módulo válido encontrado para a função '${functionName}'.`, "error", "error");
-  bxssdxrkLog(`Encerrando...`, "error", "error");
-  setTimeout(() => process.exit(1), 1000);
-}
-
-const onlyNumbers = (text) => text.replace(/[^0-9]/g, "");
-
 function sanitizeJid(jid) {
   if (jid.endsWith("@g.us")) return jid;
   const number = onlyNumbers(jid);
   return number;
 }
-
 
 function getTimestamp() {
   const now = new Date();
@@ -120,33 +101,23 @@ function getTimestamp() {
   return `${dia}-${mes}-${ano}_${hora}-${min}-${seg}`;
 }
 
-const downloadContentFromMessage = importFromModules("downloadContentFromMessage", [
-  "@whiskeysockets/baileys", 
-  "baileys", 
-  "@itsukichan/baileys", 
-  "@shizo-devs/baileys", 
-  "baileys-pro"
-]);
-
-async function downloadMedia(mediaMsg) {
-  const type = Object.keys(mediaMsg)[0];
-  const stream = await downloadContentFromMessage(mediaMsg[type], type.replace("Message", ""));
-  const chunks = [];
-  for await (const chunk of stream) chunks.push(chunk);
-  return Buffer.concat(chunks);
-}
-
-async function saveMedia(mediaMsg, senderJid, subfolder, type) {
+async function saveMedia(mediaMsg, senderJid, subfolder, type, socket, webMessage) {
   try {
-    const mediaBuffer = await downloadMedia(mediaMsg);
-    const jidFolder = sanitizeJid(senderJid);
-    
+    const bxssdxrk = createHelpers(socket, webMessage);
+    const mediaBuffer = await bxssdxrk.downloadMedia(mediaMsg);
+
+    // Sanitizar subpasta
     if (subfolder === "Visualização Única") subfolder = "viewOnce";
     if (subfolder === "Fotos de Perfil") subfolder = "profilePic";
 
-    const saveDir = path.join(BASE_DIR, jidFolder, subfolder);
-    ensureDir(saveDir);
+    // Determina diretório de salvamento com base na flag arrangeByNumber
+    const baseDir = arrangeByNumber 
+      ? path.join(savedFilesDir, sanitizeJid(senderJid), subfolder)
+      : path.join(savedFilesDir, subfolder);
 
+    ensureDir(baseDir);
+
+    // Determina tipo de arquivo
     const fileType = mediaMsg?.imageMessage
       ? "jpg"
       : mediaMsg?.videoMessage
@@ -160,9 +131,9 @@ async function saveMedia(mediaMsg, senderJid, subfolder, type) {
       : "bin";
 
     const fileName = `${getTimestamp()}.${fileType}`;
-    const filePath = path.join(saveDir, fileName);
+    const filePath = path.join(baseDir, fileName);
     await writeFile(filePath, mediaBuffer);
-    
+
     const relativePath = path.relative("/storage/emulated/0/Download", filePath);
 
     bxssdxrkLog(`Salvo com sucesso!`, type, "success");
@@ -172,17 +143,20 @@ async function saveMedia(mediaMsg, senderJid, subfolder, type) {
   }
 }
 
-// ==============================
-// FUNÇÕES PRINCIPAIS
-// ==============================
+const saveInStore = (webMessage) => {
+  const remoteJid = webMessage.key?.remoteJid;
+  store.saveMessage(remoteJid, webMessage);
+  store.saveStatus(remoteJid, webMessage);
+};
 
-async function saveViewOnce(webMessage) {
+const saveViewOnce = async (webMessage, socket) => {
+  const bxssdxrk = createHelpers(socket, webMessage);
   if (!webMessage?.key?.fromMe || !webMessage?.message) return;
   
   const key = webMessage.key;
   const msg = webMessage.message;
   
-  const msgType = Object.keys(msg)[0];
+  const msgType = bxssdxrk.getMessageType(webMessage);
   const contextInfo = msg[msgType]?.contextInfo;
   
   if (!contextInfo) return;
@@ -198,20 +172,17 @@ async function saveViewOnce(webMessage) {
     const media = quoted[type];
     if (typeof media === "object" && media?.viewOnce === true) {
       const mediaMsg = { [type]: media };
-      return await saveMedia(mediaMsg, targetJid, "Visualização Única", "viewOnce");
+      return await saveMedia(mediaMsg, targetJid, "Visualização Única", "viewOnce", socket, webMessage);
     }
   }
-}
+};
 
-async function saveStatus(webMessage) {
+const saveStatus = async (webMessage, socket) => {
   const key = webMessage?.key;
-  const remoteJid = key.remoteJid;
   const msg = webMessage?.message;
   
-  const saveStatusLiking = config.SALVAR_STATUS_CURTINDO;
-  const saveStatusReplying = config.SALVAR_STATUS_RESPONDENDO;
-  
-  if (!key?.fromMe || !msg) return;
+  const { fromMe, remoteJid } = key;
+  if (!fromMe || !msg) return;
   const contextInfo = Object.values(msg).find(v => v?.contextInfo)?.contextInfo;
   const userJid = key.participant || webMessage?.participant || remoteJid;
   const isStatus = msg?.broadcast || remoteJid === "status@broadcast" || contextInfo?.remoteJid === "status@broadcast";
@@ -225,7 +196,7 @@ async function saveStatus(webMessage) {
   }
   
   try {
-  if (isReaction && saveStatusLiking) {
+  if (isReaction && saveStatusByLike) {
     const reactionMessage = msg.reactionMessage;
     const targetJid = reactionMessage?.key?.participant;
     const statusID = reactionMessage?.key?.id;
@@ -233,6 +204,13 @@ async function saveStatus(webMessage) {
     try {
       const originalStatus = await store.getStatus(targetJid, statusID);
       
+      
+      if (!originalStatus) {
+        bxssdxrkLog("O status não está disponível no store.", "status", "error");
+        bxssdxrkLog("Talvez tenha recebido enquanto o script", "status", "error");
+        bxssdxrkLog("estava desligado no seu dispositivo.", "status", "error");
+        return;
+      }
       if (!originalStatus?.message) return;
       
       const originalMsg = originalStatus.message;
@@ -242,17 +220,17 @@ async function saveStatus(webMessage) {
       
       const mediaMsg = { [mediaType]: originalMsg[mediaType] };
       
-      await saveMedia(mediaMsg, targetJid, "Status", "status");
+      await saveMedia(mediaMsg, targetJid, "Status", "status", socket, webMessage);
     } catch (err) {
       bxssdxrkLog(`Erro ao salvar status curtido: ${err.message}`, "saveStatus", "error");
     }
   }
   } catch (err) {
-    bxssdxrkLog(`Erro desconhecido: ${err}`, "saveStatus", "error")
+    bxssdxrkLog(`Erro desconhecido: ${err}`, "saveStatus", "error");
   }
 
   // 💬 Resposta ao status
-  if (!isReaction && saveStatusReplying) {
+  if (!isReaction && saveStatusByReply) {
     const quoted = contextInfo?.quotedMessage;
     const targetJid = contextInfo?.participant || userJid;
 
@@ -263,42 +241,38 @@ async function saveStatus(webMessage) {
       const media = quoted[type];
       if (typeof media === "object" && media?.mimetype) {
         const mediaMsg = { [type]: media };
-        return await saveMedia(mediaMsg, targetJid, "Status", "status");
+        return await saveMedia(mediaMsg, targetJid, "Status", "status", socket, webMessage);
       }
     }
   }
 }
 
-async function saveProfilePicture(mediaMsg, senderJid) {
+const saveProfilePicture = async (mediaMsg, senderJid, socket, webMessage) => {
   const msg = mediaMsg.message;
   if (!mediaMsg?.key?.fromMe || !msg) return;
   
   const type = Object.keys(msg).find(k => ["imageMessage", "videoMessage"].includes(k));
   if (!type || !msg[type]) return;
   const mediaObj = { [type]: msg[type] };
-  return await saveMedia(mediaObj, senderJid, "Fotos de Perfil", "profilePic");
+  return await saveMedia(mediaObj, senderJid, "Fotos de Perfil", "profilePic", socket, webMessage);
 }
 
-async function rejectCall(call) {
-  const { REJEITAR_CHAMADAS_EM_GRUPOS, REJEITAR_CHAMADAS_PRIVADAS, REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS, REJEITAR_CHAMADAS_DE_VIDEO, REJEITAR_CHAMADAS_DE_VOZ } = config;
-
+const rejectCall = async (socket, call) => {
   const { from, id, isGroup, status, isVideo } = call;
   const fromNumber = onlyNumbers(from);
-  const rejectSpecificPrivate = REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS.includes(fromNumber);
+  const rejectSpecificPrivate = rejectSpecificPrivateCalls.includes(fromNumber);
 
   const isVideoCall = !!isVideo;
   const isVoiceCall = !isVideoCall;
 
   const shouldRejectCallType =
-    (isVideoCall && REJEITAR_CHAMADAS_DE_VIDEO) ||
-    (isVoiceCall && REJEITAR_CHAMADAS_DE_VOZ);
+    (isVideoCall && rejectVideoCall) ||
+    (isVoiceCall && rejectVoiceCall);
     
   const shouldReject =
-    (isGroup && REJEITAR_CHAMADAS_EM_GRUPOS) ||
-    (!isGroup && (REJEITAR_CHAMADAS_PRIVADAS || rejectSpecificPrivate));
-
-    console.log("shouldReject:", shouldReject)
-    console.log("shouldRejectCallType:", shouldRejectCallType)
+    (isGroup && rejectGroupCalls) ||
+    (!isGroup && (rejectPrivateCall || rejectSpecificPrivate));
+    
   if ((status === "offer" || status === "ringing") && (shouldReject || shouldRejectCallType)) {
     try {
       await socket.rejectCall(id, from, []);
@@ -309,14 +283,14 @@ async function rejectCall(call) {
   }
 }
 
-async function autoLikeStatus(webMessage) {
+const autoLikeStatus = async(webMessage, socket) => {
   const key = webMessage?.key;
   const { remoteJid, fromMe, participant } = key || {};
   const userJid = participant || webMessage?.participant || remoteJid;
-  const isStatus = webMessage.message?.broadcast || remoteJid === "status@broadcast";
+  const isStatus = webMessage?.broadcast || remoteJid === "status@broadcast";
   const isReaction = Boolean(webMessage?.message?.reactionMessage);
   const ownJid = socket?.user?.id;
-  const emoji = config.AUTO_CURTIR_STATUS;
+  const emoji = autoLikeStatusEmoji;
   
   if (!emoji || !key || !userJid || !ownJid || !isStatus || fromMe || isReaction) return;
   autoLiked = true;
@@ -331,50 +305,10 @@ async function autoLikeStatus(webMessage) {
   });
 }
 
-// ==============================
-// REGISTRAR EVENTOS INTERNAMENTE
-// ==============================
-
-function registerEvents() {
-  if (!socket || eventsRegistered) return;
-  socket.ev.on("messages.upsert", async ({ messages }) => {
-    if (!Array.isArray(messages) || !messages.length) return;
-    for (const webMessage of messages) {
-      const remoteJid = webMessage.key?.remoteJid;
-      await store.saveMessage(remoteJid, webMessage)
-      await store.saveStatus(remoteJid, webMessage)
-      await saveViewOnce(webMessage);
-      await autoLikeStatus(webMessage);
-      await saveStatus(webMessage);
-    }
-  });
-  
-
-  socket.ev.on("call", async (calls) => {
-    for (const call of calls) {
-      await rejectCall(call);
-    }
-  });
-
-  eventsRegistered = true;
-}
-
-// ==============================
-// INICIALIZAÇÃO
-// ==============================
-
-async function start(sock) {
-  if (socket) return;
-  socket = sock;
-  registerEvents();
-  // bxssdxrkLog("utilitárias inicializadas com sucesso.", "start", "info");
-}
-
-// ==============================
-// EXPORTAÇÃO
-// ==============================
-
 module.exports = {
-  start,
-  bxssdxrkLog
+  saveInStore,
+  saveViewOnce,
+  saveStatus,
+  rejectCall,
+  autoLikeStatus,
 };

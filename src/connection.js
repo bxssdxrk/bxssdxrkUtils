@@ -1,6 +1,5 @@
 const path = require("path");
-const { question, onlyNumbers } = require("./utils");
-const { config } = require("./config");
+const { question } = require("./utils");
 const {
   default: makeWASocket,
   DisconnectReason,
@@ -15,20 +14,16 @@ const {
 const NodeCache = require("node-cache");
 const pino = require("pino");
 const { load } = require("./loader");
-const { bxssdxrkLog } = require("./utils/bxssdxrkUtils");
-const { setGroupMetadata, hasGroupMetadata, isGroupCacheEmpty } = require("./utils/groupCache");
+const { onlyNumbers } = require("./utils/commonFunctions");
+const { bxssdxrkLog } = require("./utils");
+const { 
+  setGroupMetadata,
+  getGroupMetadata,
+  hasGroupMetadata,
+  isGroupCacheEmpty
+  } = require("./utils/groupCache");
 
 const msgRetryCounterCache = new NodeCache();
-
-async function getMessage(key) {
-  if (!store) {
-    return proto.Message.fromObject({});
-  }
-
-  const msg = await store.loadMessage(key.remoteJid, key.id);
-
-  return msg ? msg.message : undefined;
-}
 
 async function saveAllGroupsCache(socket) {
   bxssdxrkLog("Cache de grupos iniciado...", "groupCache", "info");
@@ -78,8 +73,7 @@ async function connect() {
     msgRetryCounterCache,
     emitOwnEvents: true,
     syncFullHistory: true,
-    shouldSyncHistoryMessage: () => true,
-    getMessage,
+    cachedGroupMetadata: async (jid) => getGroupMetadata(jid),
   });
   
   if (!socket.authState.creds.registered) {

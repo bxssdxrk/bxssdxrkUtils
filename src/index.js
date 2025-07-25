@@ -1,12 +1,11 @@
 const { connect } = require("./connection");
 const { load } = require("./loader");
-const { bxssdxrkBanner } = require("./utils");
-const { bxssdxrkLog } = require("./utils/bxssdxrkUtils");
-
+const { bxssdxrkBanner, bxssdxrkLog } = require("./utils");
+const { createHelpers } = require("./utils/commonFunctions");
 async function start() {
   try {
     bxssdxrkBanner();
-    bxssdxrkLog("Iniciando, aguarde!", "info", "info");
+    bxssdxrkLog("Iniciando, aguarde!", "sistema", "info");
     const socket = await connect();
     load(socket);
   } catch (error) {

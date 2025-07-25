@@ -1,8 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { config } = require("../config");
-
-const DATABASE_DIR = config.DATABASE_DIR;
+const { databaseDir } = require(`${BASE_DIR}/config`);
 
 function createDir(p) {
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
@@ -18,7 +16,7 @@ function writeJSON(p, data) {
   fs.writeFileSync(p, JSON.stringify(data, null, 2));
 }
 
-function createStore(base = `${DATABASE_DIR}/store`) {
+function createStore(base = `${databaseDir}/store`) {
   createDir(base + '/messages');
   createDir(base + '/status');
   /*

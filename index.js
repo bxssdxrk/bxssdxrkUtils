@@ -2,7 +2,6 @@ const { connect } = require("./src/connection");
 const { load } = require("./src/loader");
 const { bxssdxrkBanner } = require("./src");
 const { bxssdxrkLog } = require("./src/utils/bxssdxrkUtils");
-
 async function start() {
   try {
     bxssdxrkBanner();
