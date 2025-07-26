@@ -105,19 +105,16 @@ async function saveMedia(mediaMsg, senderJid, subfolder, type, socket, webMessag
   try {
     const bxssdxrk = createHelpers(socket, webMessage);
     const mediaBuffer = await bxssdxrk.downloadMedia(mediaMsg);
-
-    // Sanitizar subpasta
+    
     if (subfolder === "Visualização Única") subfolder = "viewOnce";
     if (subfolder === "Fotos de Perfil") subfolder = "profilePic";
-
-    // Determina diretório de salvamento com base na flag arrangeByNumber
+    
     const baseDir = arrangeByNumber 
       ? path.join(savedFilesDir, sanitizeJid(senderJid), subfolder)
       : path.join(savedFilesDir, subfolder);
-
+      
     ensureDir(baseDir);
-
-    // Determina tipo de arquivo
+    
     const fileType = mediaMsg?.imageMessage
       ? "jpg"
       : mediaMsg?.videoMessage
@@ -150,14 +147,17 @@ const saveInStore = (webMessage) => {
 };
 
 const saveViewOnce = async (webMessage, socket) => {
-  const bxssdxrk = createHelpers(socket, webMessage);
+  const bxssdxrk = createHelpers({ socket, webMessage });
   if (!webMessage?.key?.fromMe || !webMessage?.message) return;
   
   const key = webMessage.key;
   const msg = webMessage.message;
   
-  const msgType = bxssdxrk.getMessageType(webMessage);
-  const contextInfo = msg[msgType]?.contextInfo;
+  const msgType = Object.keys(msg)[0];
+  
+  const contextInfo = 
+    msg[msgType]?.contextInfo ||
+    msg?.extendedTextMessage?.contextInfo;
   
   if (!contextInfo) return;
   
@@ -167,10 +167,17 @@ const saveViewOnce = async (webMessage, socket) => {
   const quoted = contextInfo.quotedMessage;
   if (!quoted) return;
   
-  const mediaKeys = Object.keys(quoted);
-  for (const type of mediaKeys) {
+  const mediaTypes = [
+    'imageMessage', 
+    'videoMessage', 
+    'audioMessage', 
+    'stickerMessage',
+    'documentMessage'
+  ];
+  
+  for (const type of mediaTypes) {
     const media = quoted[type];
-    if (typeof media === "object" && media?.viewOnce === true) {
+    if (media && (media?.viewOnce === true || media?.viewOnceV2 === true)) {
       const mediaMsg = { [type]: media };
       return await saveMedia(mediaMsg, targetJid, "Visualização Única", "viewOnce", socket, webMessage);
     }
@@ -203,8 +210,6 @@ const saveStatus = async (webMessage, socket) => {
     
     try {
       const originalStatus = await store.getStatus(targetJid, statusID);
-      
-      
       if (!originalStatus) {
         bxssdxrkLog("O status não está disponível no store.", "status", "error");
         bxssdxrkLog("Talvez tenha recebido enquanto o script", "status", "error");
@@ -229,7 +234,6 @@ const saveStatus = async (webMessage, socket) => {
     bxssdxrkLog(`Erro desconhecido: ${err}`, "saveStatus", "error");
   }
 
-  // 💬 Resposta ao status
   if (!isReaction && saveStatusByReply) {
     const quoted = contextInfo?.quotedMessage;
     const targetJid = contextInfo?.participant || userJid;

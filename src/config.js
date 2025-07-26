@@ -1,4 +1,5 @@
 const path = require("path");
+const fs = require("fs");
 
 // ==================== CONFIGURAÇÕES PRIMÁRIAS ==================== //
 
@@ -19,7 +20,7 @@ const SALVAR_STATUS_CURTINDO = false;
 const SEPARAR_MIDIAS_SALVAS_POR_USUARIOS = false;
 
 // Rejeitar chamadas recebidas dentro de grupos (true = rejeita chamadas em grupo)
-const REJEITAR_CHAMADAS_EM_GRUPOS = false;
+const REJEITAR_CHAMADAS_EM_GRUPOS = true;
 
 // Rejeitar chamadas de VÍDEO em qualquer contexto (grupo ou privado)
 const REJEITAR_CHAMADAS_DE_VIDEO = false;
@@ -33,6 +34,10 @@ const REJEITAR_CHAMADAR_PRIVADAS = false;
 // Prefixos válidos para comandos (pode usar múltiplos)
 // Exemplo: ["!", ".", "/"]
 const PREFIXOS_DOS_COMANDOS = ["!", "."];
+
+const NOME_DO_PACOTE_AO_FAZER_FIGURINHAS = "bxssdxrkUtils!";
+
+const NOME_DO_AUTOR_AO_FAZER_FIGURINHAS = "https://github.com/bxssdxrk/bxssdxrkUtils";
 
 // Permitir o uso de comandos (true = comandos habilitados, false = desativados)
 const PERMITIR_COMANDOS = false;
@@ -70,11 +75,26 @@ const rejectVoiceCall = REJEITAR_CHAMADAS_DE_VOZ;
 const rejectPrivateCall = REJEITAR_CHAMADAR_PRIVADAS;
 const rejectSpecificPrivateCalls = REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS;
 const allowCommands = PERMITIR_COMANDOS;
+const stickerMetadata = { 
+  packName: NOME_DO_PACOTE_AO_FAZER_FIGURINHAS, 
+  author: NOME_DO_AUTOR_AO_FAZER_FIGURINHAS
+};
 const onlyChatsCommands = COMANDOS_SOMENTE_NOS_CHATS;
 const timeoutByEvent = TIMEOUT_IN_MILLISECONDS_BY_EVENT;
 const databaseDir = path.resolve(__dirname, "..", "database");
+const tempDir = path.resolve(__dirname, "..", "assets", "temp");
 const commandsDir = path.resolve(__dirname, "commands");
 const savedFilesDir = "/storage/emulated/0/Download/bxssdxrkUtils";
+
+function ensureDirExists(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+[ 
+  databaseDir, tempDir, 
+  commandsDir, savedFilesDir
+].forEach(ensureDirExists);
 
 module.exports = {
   ownNumber,
@@ -90,9 +110,11 @@ module.exports = {
   rejectPrivateCall,
   rejectSpecificPrivateCalls,
   allowCommands,
+  stickerMetadata,
   onlyChatsCommands,
   timeoutByEvent,
   databaseDir,
+  tempDir,
   commandsDir,
   savedFilesDir,
 };

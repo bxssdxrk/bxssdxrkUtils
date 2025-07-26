@@ -1,8 +1,10 @@
 const { getContentType, getDevice, downloadContentFromMessage } = require("@itsukichan/baileys");
 
 const { onlyNumbers, toUserJid, extractDataFromMessage } = require(".");
-const { commandPrefixes } = require(`${BASE_DIR}/config`);
+const { commandPrefixes, tempDir } = require(`${BASE_DIR}/config`);
 const fs = require("fs");
+const path = require('path');
+const { writeFile } = require('fs').promises;
 const https = require("https");
 const http = require("http");
 const mime = require("mime-types");
@@ -19,39 +21,128 @@ exports.createHelpers = ({ socket, webMessage }) => {
     isReply, 
     replyJid 
   } = extractDataFromMessage(webMessage, commandPrefixes);
-
-  const getMessageType = (msg) => {
-    return getContentType(msg?.message);
-  };
-
-  const getQuotedMessage = (msg) => {
-    if (!msg || typeof msg !== "object") {
+  
+  if (!remoteJid) return;
+  
+  const downloadMedia = async (webMessage, fileName) => {
+    const getMediaInfo = () => {
+      const mediaTypes = [
+        'image', 'video', 'audio', 
+        'sticker', 'document'
+      ];
+      const quotedMessage = 
+        webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage ||
+        webMessage.message?.contextInfo?.quotedMessage || 
+        webMessage.message?.imageMessage?.contextInfo?.quotedMessage || 
+        webMessage.message?.videoMessage?.contextInfo?.quotedMessage || 
+        webMessage.message?.audioMessage?.contextInfo?.quotedMessage || 
+        webMessage.message?.stickerMessage?.contextInfo?.quotedMessage || 
+        webMessage.message?.documentMessage?.contextInfo?.quotedMessage;
+      
+      for (const type of mediaTypes) {
+        const messageType = `${type}Message`;
+        if (webMessage.message?.[messageType]) {
+          return {
+            type,
+            content: webMessage.message[messageType]
+          };
+        }
+      }
+      
+      for (const type of mediaTypes) {
+        const messageType = `${type}Message`;
+        if (quotedMessage?.[messageType]) {
+          return {
+            type,
+            content: quotedMessage[messageType]
+          };
+        }
+      }
       return null;
+    };
+    
+    const mediaInfo = getMediaInfo();
+    if (!mediaInfo) return null;
+    
+    const getExtension = () => {
+      const extensionMap = {
+        image: 'png',
+        sticker: 'webp',
+        video: 'mp4',
+        audio: 'opus'
+      };
+      if (mediaInfo.type === 'document') {
+        const originalFilename = mediaInfo.content.fileName || '';
+        const fileExtension = originalFilename.split('.').pop();
+        return fileExtension || 'bin';
+      }
+      return extensionMap[mediaInfo.type] || mediaInfo.type;
+    };
+    
+    const extension = getExtension();
+    const stream = await downloadContentFromMessage(mediaInfo.content, mediaInfo.type);
+    let buffer = Buffer.from([]);
+    for await (const chunk of stream) {
+      buffer = Buffer.concat([buffer, chunk]);
     }
-    const messageContent = Object.values(msg.message || {})[0];
-    return messageContent?.contextInfo?.quotedMessage || null;
+    const filePath = path.resolve(
+      tempDir, 
+      `${fileName}.${extension}`
+    );
+    await writeFile(filePath, buffer);
+    return filePath;
+  };
+  
+  const isType = (webMessage, type) => {
+    const messageType = `${type}Message`;
+    if (webMessage.message?.[messageType] != null) {
+      return true;
+    }
+    const quotedMessage = 
+      webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage ||
+      webMessage.message?.contextInfo?.quotedMessage;
+    return quotedMessage?.[messageType] != null;
   };
 
-  const isViewOnce = (msg) => {
-    const messages = [];
-    if (msg?.message) messages.push(msg.message);
-    const quotedMsg = getQuotedMessage(msg);
-    if (quotedMsg) messages.push(quotedMsg);
+  const isViewOnce = (webMessage) => {
+    const mediaTypes = ["image", "video", "audio"];
+    const quotedMessage = 
+      webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage || 
+      webMessage.message?.contextInfo?.quotedMessage || 
+      webMessage.message?.imageMessage?.contextInfo?.quotedMessage || 
+      webMessage.message?.videoMessage?.contextInfo?.quotedMessage || 
+      webMessage.message?.audioMessage?.contextInfo?.quotedMessage || 
+      webMessage.message?.stickerMessage?.contextInfo?.quotedMessage || 
+      webMessage.message?.documentMessage?.contextInfo?.quotedMessage;
+    
+    const messagesToCheck = [];
+    
+    if (webMessage?.message) {
+      messagesToCheck.push(webMessage.message);
+    }
 
-    return messages.some(msgObj => {
-      const msgTypeKey = Object.keys(msgObj || {})[0];
-      return msgObj?.[msgTypeKey]?.viewOnce === true;
+    if (quotedMessage) {
+      messagesToCheck.push(quotedMessage);
+    }
+
+    return messagesToCheck.some(msgObj => {
+      for (const type of mediaTypes) {
+        const messageType = `${type}Message`;
+        const content = msgObj?.[messageType];
+        if (content?.viewOnce === true) {
+          return true;
+        }
+      }
+      return false;
     });
   };
-
-  const downloadMedia = async (mediaMsg) => {
-    const type = Object.keys(mediaMsg)[0];
-    const stream = await downloadContentFromMessage(mediaMsg[type], type.replace("Message", ""));
-    const chunks = [];
-    for await (const chunk of stream) chunks.push(chunk);
-    return Buffer.concat(chunks);
-  };
-
+  
+  const isImage = isType(webMessage, "image");
+  const isVideo = isType(webMessage, "video");
+  const isSticker = isType(webMessage,"sticker");
+  const isAudio = isType(webMessage, "audio");
+  const isDocument = isType(webMessage, "document");
+  
   const getBuffer = async (url) => {
     const protocol = url.startsWith("https") ? https : http;
     return new Promise((resolve, reject) => {
@@ -67,26 +158,6 @@ exports.createHelpers = ({ socket, webMessage }) => {
   const userDevice = (id) => {
     return getDevice(id);
   };
-
-  const cleanType = (rawType) => {
-    if (typeof rawType !== "string") {
-      return "";
-    }
-    return rawType.replace(/Message$/, "");
-  };
-
-  const isType = (type) => {
-    const mainType = cleanType(getMessageType(webMessage));
-    const quotedMsg = getQuotedMessage(webMessage);
-    const quotedType = cleanType(getMessageType({ message: quotedMsg }));
-    return mainType === type || quotedType === type;
-  };
-
-  const isImage = isType("image");
-  const isVideo = isType("video");
-  const isSticker = isType("sticker");
-  const isAudio = isType("audio");
-  const isDocument = isType("document");
 
   const sendReply = async (text, optionalParams = {}) => {
     return await socket.sendMessage(remoteJid, {
@@ -174,6 +245,16 @@ exports.createHelpers = ({ socket, webMessage }) => {
     };
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
+
+  const sendImageFromBufferWithButtons = async (buffer, optionalParams = {}) => {
+    const msg = {
+      image: buffer,
+      ...optionalParams,
+      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
+      headerType: 4
+    };
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
+  };
   
   const sendVideoFromFileWithButtons = async (file, optionalParams = {}) => {
     const msg = {
@@ -188,6 +269,16 @@ exports.createHelpers = ({ socket, webMessage }) => {
   const sendVideoFromURLWithButtons = async (url, optionalParams = {}) => {
     const msg = {
       video: { url },
+      ...optionalParams,
+      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
+      headerType: 5
+    };
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
+  };
+  
+  const sendVideoFromBufferWithButtons = async (buffer, optionalParams = {}) => {
+    const msg = {
+      video: buffer,
       ...optionalParams,
       ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
       headerType: 5
@@ -214,6 +305,16 @@ exports.createHelpers = ({ socket, webMessage }) => {
     };
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
+
+  const sendDocumentFromBufferWithButtons = async (buffer, optionalParams = {}) => {
+    const msg = {
+      document: buffer,
+      ...optionalParams,
+      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
+      headerType: 1
+    };
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
+  };
   
   const sendAudioFromFileWithButtons = async (file, optionalParams = {}) => {
     const msg = {
@@ -225,6 +326,15 @@ exports.createHelpers = ({ socket, webMessage }) => {
   };
 
   const sendAudioFromURLWithButtons = async (url, optionalParams = {}) => {
+    const msg = {
+      audio: { url },
+      ...optionalParams,
+      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {})
+    };
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
+  };
+
+  const sendAudioFromBufferWithButtons = async (buffer, optionalParams = {}) => {
     const msg = {
       audio: { url },
       ...optionalParams,
@@ -250,6 +360,15 @@ exports.createHelpers = ({ socket, webMessage }) => {
     };
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
+  
+  const sendStickerFromBufferWithButtons = async (buffer, optionalParams = {}) => {
+    const msg = {
+      sticker: buffer,
+      ...optionalParams,
+      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {})
+    };
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
+  };
 
   const sendImageFromFile = async (file, optionalParams = {}) => {
     return await socket.sendMessage(remoteJid, { 
@@ -264,6 +383,13 @@ exports.createHelpers = ({ socket, webMessage }) => {
       ...optionalParams
     }, { quoted: webMessage });
   };
+  
+  const sendImageFromBuffer = async (buffer, optionalParams = {}) => {
+    return await socket.sendMessage(remoteJid, {
+      image: buffer,
+      ...optionalParams
+    }, { quoted: webMessage });
+  };
 
   const sendVideoFromFile = async (file, optionalParams = {}) => {
     return await socket.sendMessage(remoteJid, { 
@@ -275,6 +401,13 @@ exports.createHelpers = ({ socket, webMessage }) => {
   const sendVideoFromURL = async (url, optionalParams = {}) => {
     return await socket.sendMessage(remoteJid, {
       video: { url },
+      ...optionalParams
+    }, { quoted: webMessage });
+  };
+  
+  const sendVideoFromBuffer = async (buffer, optionalParams = {}) => {
+    return await socket.sendMessage(remoteJid, {
+      video: buffer,
       ...optionalParams
     }, { quoted: webMessage });
   };
@@ -293,6 +426,13 @@ exports.createHelpers = ({ socket, webMessage }) => {
     }, { quoted: webMessage });
   };
 
+  const sendStickerFromBuffer = async (buffer, optionalParams = {}) => {
+    return await socket.sendMessage(remoteJid, {
+      sticker: buffer,
+      ...optionalParams
+    }, { quoted: webMessage });
+  };
+
   const sendAudioFromFile = async (file, optionalParams = {}) => {
     return await socket.sendMessage(remoteJid, { 
       audio: fs.readFileSync(file),
@@ -303,6 +443,13 @@ exports.createHelpers = ({ socket, webMessage }) => {
   const sendAudioFromURL = async (url, optionalParams = {}) => {
     return await socket.sendMessage(remoteJid, {
       audio: { url },
+      ...optionalParams
+    }, { quoted: webMessage });
+  };
+
+  const sendAudioFromBuffer = async (buffer, optionalParams = {}) => {
+    return await socket.sendMessage(remoteJid, {
+      audio: buffer,
       ...optionalParams
     }, { quoted: webMessage });
   };
@@ -324,12 +471,14 @@ exports.createHelpers = ({ socket, webMessage }) => {
       ...optionalParams
     }, { quoted: webMessage });
   };
-
-  const downloadMediaFromMessage = async () => {
-    const quotedMsg = getQuotedMessage(webMessage);
-    const targetMsg = quotedMsg || webMessage.message;
-    if (!targetMsg) return null;
-    return await downloadMedia(targetMsg);
+  
+  const sendDocumentFromBuffer = async (buffer, optionalParams = {}) => {
+    return await socket.sendMessage(remoteJid, {
+      document: buffer,
+      mimetype: mime.lookup(url) || "application/octet-stream",
+      fileName: optionalParams.fileName || Date.now(),
+      ...optionalParams
+    }, { quoted: webMessage });
   };
 
   return {
@@ -345,9 +494,8 @@ exports.createHelpers = ({ socket, webMessage }) => {
     webMessage,
     socket,
     userDevice,
-    getMessageType,
-    isType,
     isViewOnce,
+    isType,
     isImage,
     isVideo,
     isSticker,
@@ -357,6 +505,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     sendWaitReact,
     sendWarningReact,
     sendErrorReact,
+    sendReact,
     sendReply,
     sendSuccessReply,
     sendWaitReply,
@@ -364,31 +513,38 @@ exports.createHelpers = ({ socket, webMessage }) => {
     sendErrorReply,
     sendImageFromFile,
     sendImageFromURL,
+    sendImageFromBuffer,
     sendVideoFromFile,
     sendVideoFromURL,
+    sendVideoFromBuffer,
     sendStickerFromFile,
     sendStickerFromURL,
+    sendStickerFromBuffer,
     sendAudioFromFile,
     sendAudioFromURL,
+    sendAudioFromBuffer,
     sendDocumentFromFile,
     sendDocumentFromURL,
+    sendDocumentFromBuffer,
     sendTextWithButtons,
     sendImageFromFileWithButtons,
     sendImageFromURLWithButtons,
+    sendImageFromBufferWithButtons,
     sendVideoFromFileWithButtons,
     sendVideoFromURLWithButtons,
+    sendVideoFromBufferWithButtons,
     sendDocumentFromFileWithButtons,
     sendDocumentFromURLWithButtons,
+    sendDocumentFromBufferWithButtons,
     sendAudioFromFileWithButtons,
     sendAudioFromURLWithButtons,
+    sendAudioFromBufferWithButtons,
     sendStickerFromFileWithButtons,
     sendStickerFromURLWithButtons,
-    getQuotedMessage,
+    sendStickerFromBufferWithButtons,
     downloadMedia,
     getBuffer,
-    downloadMediaFromMessage,
-    sendReact,
     onlyNumbers,
-    toUserJid
+    toUserJid,
   };
 };

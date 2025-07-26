@@ -1,7 +1,7 @@
 const path = require("path");
 const fs = require('fs');
 const { ownNumber, onlyChatsCommands } = require(`${BASE_DIR}/config`);
-const { onlyNumbers, toUserJid } = require(`${BASE_DIR}/utils`);
+const { onlyNumbers, bxssdxrkLog, toUserJid } = require(`${BASE_DIR}/utils`);
 const {
   setGroupMetadata,
   getGroupMetadata,
@@ -12,16 +12,22 @@ const {
 
 exports.onGroupParticipantsUpdate = async ({ 
   socket, 
-  remoteJid, 
+  id, 
   participants, 
   action
 }) => {
-  
-  
-  const metadata = await socket.groupMetadata(remoteJid);
-  await setGroupMetadata(remoteJid, metadata);
+  try {
+    const metadata = await socket.groupMetadata(id);
+    await setGroupMetadata(id, metadata);
+  } catch (err) {
+    bxssdxrkLog(`Erro ao obter/salvar metadata do grupo ${id}: ${err?.message || err}`, "groupCache", "error");
+    console.log(id);
+    console.log(participants);
+    console.log(action);
+  }
+
   
   if (Array.isArray(onlyChatsCommands) && onlyChatsCommands.length > 0) {
-    if (!onlyChatsCommands.includes(remoteJid)) return;
+    if (!onlyChatsCommands.includes(id)) return;
   }
 };

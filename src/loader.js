@@ -5,7 +5,6 @@ const { onGroupParticipantsUpdate } = require("./middlewares/onGroupParticipants
 
 exports.load = (socket) => {
   socket.ev.on("messages.upsert", async ({ messages, type }) => {
-    // if (type !== 'notify') return;
     setTimeout(async () => {
       onMessagesUpsert({ socket, messages });
     }, timeoutByEvent);

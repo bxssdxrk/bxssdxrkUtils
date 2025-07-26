@@ -1,12 +1,10 @@
 const NodeCache = require('node-cache');
   
-// Cria a instância do cache
 const groupCache = new NodeCache({
   stdTTL: 60 * 60,
   useClones: false
 });
 
-// Funções utilitárias
 const setGroupMetadata = (id, metadata) => {
   if (!id || !metadata) return false;
   return groupCache.set(id, metadata);
@@ -35,7 +33,6 @@ const isGroupCacheEmpty = () => {
   return groupCache.keys().length === 0;
 };
 
-// Exporta tanto a instância como as funções
 module.exports = {
   groupCache,
   setGroupMetadata,

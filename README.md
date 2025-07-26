@@ -24,7 +24,7 @@ Para usar esse projeto, basta seguir os passos abaixo:
    npm install
    ```
 
-4. Configure o arquivo `bxssdxrkUtils/src/config.js` como preferir.
+4. Abra o [arquivo de configuração](./src/config.js) e configure como preferir.
 
 5. Inicie o script com:
 
@@ -40,11 +40,11 @@ Aqui estão algumas das funções disponíveis:
 
 * **`Salvar viewOnce`**: Salva a mídia de visualização única apenas respondendo a mensagem.
 
-* **`Salvar Status`**: Salvar o status de um usuário ao responder ou curtir o status. Precisa ter recebido o status DEPOIS de ter iniciado o script pra salvar curtindo. (configurável no `config.js`)
+* **`Salvar Status`**: Salvar o status de um usuário ao responder ou curtir o status. Precisa ter recebido o status DEPOIS de ter iniciado o script pra salvar curtindo. (configurável no [arquivo de configuração](./src/config.js))
 
-* **`Auto-rejeitar Chamadas`**: Rejeita automaticamente as chamadas recebidas.  (configurável no `config.js`)
+* **`Auto-rejeitar Chamadas`**: Rejeita automaticamente as chamadas recebidas.  (configurável no [arquivo de configuração](./src/config.js))
 
-* **`Auto-curtir Status`**: Curte os status recebidos. (configurável no `config.js`)
+* **`Auto-curtir Status`**: Curte os status recebidos. (configurável no [arquivo de configuração](./src/config.js))
 
 ## Quero contribuir no projeto, mas como?
 

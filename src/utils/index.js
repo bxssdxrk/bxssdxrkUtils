@@ -221,7 +221,7 @@ exports.readCommandImports = () => {
       const fullPath = path.join(dirPath, item.name);
       
       if (item.isDirectory()) {
-        scanDirectory(fullPath, type); // Continua recursão
+        scanDirectory(fullPath, type);
       } 
       else if (
         (item.isFile() && 
@@ -235,7 +235,6 @@ exports.readCommandImports = () => {
     }
   };
 
-  // Percorre apenas as pastas principais (member, admin, etc)
   const mainDirs = fs.readdirSync(commandsDir, { withFileTypes: true })
     .filter(dirent => dirent.isDirectory())
     .map(dirent => dirent.name);
