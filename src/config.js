@@ -3,59 +3,93 @@ const fs = require("fs");
 
 // ==================== CONFIGURAÇÕES PRIMÁRIAS ==================== //
 
-// Coloque o seu número (sem espaços, apenas números com DDI, ex: "5599999999999")
+// Informe seu número de telefone completo, SEM espaços, traços ou parênteses,
+// e incluindo o código do país (ex: Brasil = 55).
+// Exemplo correto: "5599999999999"
 const SEU_NUMERO = "";
 
-// Emoji usado ao curtir status automaticamente (deixe vazio "" para desativar)
-// Exemplo: "💚"
+// Emoji que será usado automaticamente para curtir os status dos seus contatos.
+// Exemplo: "💚". Deixe vazio ("") se não quiser curtir automaticamente.
 const AUTO_CURTIR_STATUS = "";
 
-// Salvar status quando RESPONDER diretamente a um status
+// Salvar o status quando você RESPONDER diretamente a ele?
+// true  = sim, o status será salvo automaticamente
+// false = não salvará nada ao responder
 const SALVAR_STATUS_RESPONDENDO = false;
 
-// Salvar status quando CURTIR (reagir com emoji) um status
+// Salvar o status quando você CURTIR (reagir com emoji)?
+// true  = sim, salvará o status curtido
+// false = não salvará
 const SALVAR_STATUS_CURTINDO = false;
 
-// Separar arquivos de mídia salvos por usuário (true = organiza em pastas por número)
+// Ao salvar mídias (imagens, vídeos, áudios), deseja organizá-las por usuário?
+// true  = sim, cada contato terá sua própria pasta
+// false = todas as mídias vão para uma única pasta
 const SEPARAR_MIDIAS_SALVAS_POR_USUARIOS = false;
 
-// Rejeitar chamadas recebidas dentro de grupos (true = rejeita chamadas em grupo)
-const REJEITAR_CHAMADAS_EM_GRUPOS = true;
+// Rejeitar chamadas recebidas dentro de grupos?
+// true  = sim, chamadas em grupo serão recusadas automaticamente
+// false = não rejeitar chamadas em grupo
+const REJEITAR_CHAMADAS_EM_GRUPOS = false;
 
-// Rejeitar chamadas de VÍDEO em qualquer contexto (grupo ou privado)
+// Rejeitar qualquer chamada de VÍDEO (grupo ou privado)?
+// true  = sim, todas as chamadas de vídeo serão recusadas
+// false = chamadas de vídeo são aceitas normalmente
 const REJEITAR_CHAMADAS_DE_VIDEO = false;
 
-// Rejeitar chamadas de VOZ em qualquer contexto (grupo ou privado)
+// Rejeitar qualquer chamada de VOZ (grupo ou privado)?
+// true  = sim, todas as chamadas de voz serão recusadas
+// false = chamadas de voz são aceitas normalmente
 const REJEITAR_CHAMADAS_DE_VOZ = false;
 
-// Rejeitar todas chamadas PRIVADAS
+// Rejeitar todas as chamadas feitas no PRIVADO?
+// true  = sim, qualquer chamada privada será recusada
+// false = chamadas privadas são aceitas
 const REJEITAR_CHAMADAR_PRIVADAS = false;
 
-// Prefixos válidos para comandos (pode usar múltiplos)
-// Exemplo: ["!", ".", "/"]
-const PREFIXOS_DOS_COMANDOS = ["!", "."];
+// Prefixos válidos que serão usados para identificar comandos nas mensagens.
+// Pode usar mais de um prefixo, como "!", ".", "/", etc.
+// Exemplo: ["!", "."] permite usar "!comando" ou ".comando"
+// ATENÇÃO: Sempre use colchetes [] mesmo se for apenas um prefixo.
+const PREFIXOS_DOS_COMANDOS = [
+  // Preficxo padrão
+  "!"
+];
 
+// Nome que será mostrado como "pacote" nas figurinhas criadas.
+// Pode ser qualquer nome, isso é apenas por estética
 const NOME_DO_PACOTE_AO_FAZER_FIGURINHAS = "bxssdxrkUtils!";
 
+// Nome do autor mostrado nas figurinhas criadas.
+// Pode ser seu nome, um apelido ou até um link.
+// Isso também é apenas por estética
 const NOME_DO_AUTOR_AO_FAZER_FIGURINHAS = "https://github.com/bxssdxrk/bxssdxrkUtils";
 
-// Permitir o uso de comandos (true = comandos habilitados, false = desativados)
+// Deseja permitir o uso de comandos nas mensagens?
+// true  = comandos ativados
+// false = comandos desativados (nada será executado ao enviar comandos)
 const PERMITIR_COMANDOS = false;
 
-// Lista de JIDs (grupos ou números) onde comandos são permitidos
-// Se estiver vazia, comandos são permitidos em qualquer chat (caso PERMITIR_COMANDOS seja true)
+// Lista de chats específicos (grupos ou números) onde o uso de comandos é permitido.
+// Caso essa lista fique vazia, comandos funcionarão em qualquer lugar (se PERMITIR_COMANDOS for true).
+// Cada item precisa ser um identificador (JID) como mostrado nos exemplos abaixo:
+// Grupo: "120363438656526969@g.us"
+// Contato: "555155554444@s.whatsapp.net"
 const COMANDOS_SOMENTE_NOS_CHATS = [
-  // "120363438656526969@g.us",      =>  Exemplo de JID de grupo
-  // "555155554444@s.whatsapp.net"   =>  Exemplo de JID privado
+  // "120363438656526969@g.us",     
+  // "555155554444@s.whatsapp.net"  
 ];
 
-// Lista de números específicos que terão chamadas privadas rejeitadas automaticamente
+// Lista de números específicos cujas chamadas privadas sempre serão recusadas.
+// Útil para bloquear chamadas indesejadas mesmo se chamadas privadas estiverem liberadas em geral.
 const REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS = [
-  "555199998888", // Exemplo
-  "555155554444"  // Exemplo
+  // "555199998888",     
+  // "555155554444"      
 ];
 
-// Tempo de espera (em milissegundos) entre eventos repetidos para evitar spam/banimento
+// Tempo de espera entre eventos iguais, como mensagens ou comandos repetidos.
+// Esse intervalo (em milissegundos) ajuda a evitar spam ou bloqueios por excesso de atividade.
+// Exemplo: 700 significa que espera 0,7 segundos entre repetições.
 const TIMEOUT_IN_MILLISECONDS_BY_EVENT = 700;
 
 
