@@ -1,3 +1,5 @@
 /.git/
 /assets/auth/
+/assets/temp/
 /database/
+/node_modules/
