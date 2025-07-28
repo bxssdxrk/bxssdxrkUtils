@@ -24,46 +24,35 @@ exports.createHelpers = ({ socket, webMessage }) => {
   
   if (!remoteJid) return;
   
-  const downloadMedia = async (webMessage, fileName) => {
+  const deleteFilesSync = (...files) => {
+    files.forEach(file => {
+      try {
+        if (fs.existsSync(file) && fs.lstatSync(file).isFile()) fs.unlinkSync(file);
+      } catch (error) {}
+    });
+  };
+
+  const downloadMedia = async (mediaMsg, fileName) => {
     const getMediaInfo = () => {
-      const mediaTypes = [
-        'image', 'video', 'audio', 
-        'sticker', 'document'
-      ];
-      const quotedMessage = 
-        webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage ||
-        webMessage.message?.contextInfo?.quotedMessage || 
-        webMessage.message?.imageMessage?.contextInfo?.quotedMessage || 
-        webMessage.message?.videoMessage?.contextInfo?.quotedMessage || 
-        webMessage.message?.audioMessage?.contextInfo?.quotedMessage || 
-        webMessage.message?.stickerMessage?.contextInfo?.quotedMessage || 
-        webMessage.message?.documentMessage?.contextInfo?.quotedMessage;
+      const mediaTypes = ['image', 'video', 'audio', 'sticker', 'document'];
       
       for (const type of mediaTypes) {
         const messageType = `${type}Message`;
-        if (webMessage.message?.[messageType]) {
+        if (mediaMsg?.[messageType]) {
           return {
             type,
-            content: webMessage.message[messageType]
-          };
-        }
-      }
-      
-      for (const type of mediaTypes) {
-        const messageType = `${type}Message`;
-        if (quotedMessage?.[messageType]) {
-          return {
-            type,
-            content: quotedMessage[messageType]
+            content: mediaMsg[messageType]
           };
         }
       }
       return null;
     };
-    
+  
     const mediaInfo = getMediaInfo();
-    if (!mediaInfo) return null;
-    
+    if (!mediaInfo) {
+      return null;
+    }
+  
     const getExtension = () => {
       const extensionMap = {
         image: 'png',
@@ -78,17 +67,14 @@ exports.createHelpers = ({ socket, webMessage }) => {
       }
       return extensionMap[mediaInfo.type] || mediaInfo.type;
     };
-    
+  
     const extension = getExtension();
     const stream = await downloadContentFromMessage(mediaInfo.content, mediaInfo.type);
     let buffer = Buffer.from([]);
     for await (const chunk of stream) {
       buffer = Buffer.concat([buffer, chunk]);
     }
-    const filePath = path.resolve(
-      tempDir, 
-      `${fileName}.${extension}`
-    );
+    const filePath = path.resolve(tempDir, `${fileName}.${extension}`);
     await writeFile(filePath, buffer);
     return filePath;
   };
@@ -544,6 +530,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     sendStickerFromBufferWithButtons,
     downloadMedia,
     getBuffer,
+    deleteFilesSync,
     onlyNumbers,
     toUserJid,
   };

@@ -52,7 +52,7 @@ const REJEITAR_CHAMADAR_PRIVADAS = false;
 // Exemplo: ["!", "."] permite usar "!comando" ou ".comando"
 // ATENÇÃO: Sempre use colchetes [] mesmo se for apenas um prefixo.
 const PREFIXOS_DOS_COMANDOS = [
-  // Preficxo padrão
+  // Prefixo padrão
   "!"
 ];
 
@@ -69,6 +69,16 @@ const NOME_DO_AUTOR_AO_FAZER_FIGURINHAS = "https://github.com/bxssdxrk/bxssdxrkU
 // true  = comandos ativados
 // false = comandos desativados (nada será executado ao enviar comandos)
 const PERMITIR_COMANDOS = false;
+
+// Ativar sistema anti-spam (anti-trava / anti-divulgação)?
+// true  = ativa bloqueio automático de mensagens maliciosas ou indesejadas, como:
+//    - mensagens com padrões de trava (ex: símbolos, JSONs gigantes)
+//    - tipos mensagens de divulgação conhecidas
+//    - arquivos potencialmente perigosos
+// false = desativa esse filtro, todas as mensagens serão recebidas normalmente
+// NEM TODOS OS TIPOS DE SPAM/TRAVAS SÃO BLOQUEADOS!!!
+// Os tipos de spam que bloqueia, são spams que eu já "presenciei" anteriormente.
+const HABILITAR_ANTI_SPAM = false;
 
 // Lista de chats específicos (grupos ou números) onde o uso de comandos é permitido.
 // Caso essa lista fique vazia, comandos funcionarão em qualquer lugar (se PERMITIR_COMANDOS for true).
@@ -93,14 +103,18 @@ const REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS = [
 const TIMEOUT_IN_MILLISECONDS_BY_EVENT = 700;
 
 
-// ==================== APARTIR DAQUI NÃO ALTERE NADA ==================== //
 
+
+
+
+// ==================== APARTIR DAQUI, NÃO ALTERE NADA ==================== //
 
 const ownNumber = SEU_NUMERO;
 const autoLikeStatusEmoji = AUTO_CURTIR_STATUS;
 const commandPrefixes = PREFIXOS_DOS_COMANDOS;
 const prefix = commandPrefixes[0];
 const saveStatusByReply = SALVAR_STATUS_RESPONDENDO;
+const enableAntiSpam = HABILITAR_ANTI_SPAM;
 const saveStatusByLike = SALVAR_STATUS_CURTINDO;
 const arrangeByNumber = SEPARAR_MIDIAS_SALVAS_POR_USUARIOS;
 const rejectGroupCalls = REJEITAR_CHAMADAS_EM_GRUPOS;
@@ -134,6 +148,7 @@ module.exports = {
   ownNumber,
   commandPrefixes,
   prefix,
+  enableAntiSpam,
   autoLikeStatusEmoji,
   saveStatusByReply,
   saveStatusByLike,

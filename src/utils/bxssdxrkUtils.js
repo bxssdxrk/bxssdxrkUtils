@@ -45,11 +45,13 @@
  */
 
 const fs = require("fs");
+const fsp = fs.promises;
 const path = require("path");
 const { downloadContentFromMessage } = require("@itsukichan/baileys");
 const { writeFile } = require("fs/promises");
 const { 
   savedFilesDir,
+  enableAntiSpam,
   autoLikeStatusEmoji,
   saveStatusByReply,
   saveStatusByLike,
@@ -101,13 +103,25 @@ function getTimestamp() {
   return `${dia}-${mes}-${ano}_${hora}-${min}-${seg}`;
 }
 
+const saveInStore = (webMessage) => {
+  const remoteJid = webMessage.key?.remoteJid;
+  store.saveMessage(remoteJid, webMessage);
+  store.saveStatus(remoteJid, webMessage);
+};
+
 async function saveMedia(mediaMsg, senderJid, subfolder, type, socket, webMessage) {
   try {
-    const bxssdxrk = createHelpers(socket, webMessage);
-    const mediaBuffer = await bxssdxrk.downloadMedia(mediaMsg);
+    const bxssdxrk = createHelpers({ socket, webMessage });
+    const downloadedPath = await bxssdxrk.downloadMedia(mediaMsg, `${type}-${Date.now()}`);
+    console.log(downloadedPath);
     
+    if (!downloadedPath) {
+      bxssdxrkLog("Não foi possível baixar o arquivo.", type, "error");
+      return;
+    }
+
     if (subfolder === "Visualização Única") subfolder = "viewOnce";
-    if (subfolder === "Fotos de Perfil") subfolder = "profilePic";
+    if (subfolder === "Status") subfolder = "status";
     
     const baseDir = arrangeByNumber 
       ? path.join(savedFilesDir, sanitizeJid(senderJid), subfolder)
@@ -115,39 +129,39 @@ async function saveMedia(mediaMsg, senderJid, subfolder, type, socket, webMessag
       
     ensureDir(baseDir);
     
-    const fileType = mediaMsg?.imageMessage
-      ? "jpg"
-      : mediaMsg?.videoMessage
-      ? "mp4"
-      : mediaMsg?.audioMessage
-      ? "mp3"
-      : mediaMsg?.documentMessage
-      ? mediaMsg.documentMessage.fileName?.split(".").pop() || "bin"
-      : mediaMsg?.stickerMessage
-      ? "webp"
-      : "bin";
+    const fileExtension = path.extname(downloadedPath) || '';
+    let finalExtension = fileExtension.toLowerCase().replace('.', '');
 
-    const fileName = `${getTimestamp()}.${fileType}`;
-    const filePath = path.join(baseDir, fileName);
-    await writeFile(filePath, mediaBuffer);
+    if (!finalExtension) {
+      finalExtension = mediaMsg?.imageMessage
+        ? "jpg"
+        : mediaMsg?.videoMessage
+        ? "mp4"
+        : mediaMsg?.audioMessage
+        ? "mp3"
+        : mediaMsg?.documentMessage
+        ? (mediaMsg.documentMessage.fileName?.split(".").pop() || 'bin')
+        : mediaMsg?.stickerMessage
+        ? "webp"
+        : "bin";
+    }
 
-    const relativePath = path.relative("/storage/emulated/0/Download", filePath);
+    const fileName = `${getTimestamp()}.${finalExtension}`;
+    const destinationPath = path.join(baseDir, fileName);
+    
+    await fsp.rename(downloadedPath, destinationPath);
+    const relativePath = path.relative("/storage/emulated/0/Download", destinationPath);
 
     bxssdxrkLog(`Salvo com sucesso!`, type, "success");
     bxssdxrkLog(`Download/${relativePath}`, type, "success");
   } catch (err) {
+    console.log(err);
     bxssdxrkLog(`Erro ao salvar ${subfolder}: ${err.message}`, type, "error");
   }
 }
 
-const saveInStore = (webMessage) => {
-  const remoteJid = webMessage.key?.remoteJid;
-  store.saveMessage(remoteJid, webMessage);
-  store.saveStatus(remoteJid, webMessage);
-};
 
 const saveViewOnce = async (webMessage, socket) => {
-  const bxssdxrk = createHelpers({ socket, webMessage });
   if (!webMessage?.key?.fromMe || !webMessage?.message) return;
   
   const key = webMessage.key;
@@ -251,14 +265,61 @@ const saveStatus = async (webMessage, socket) => {
   }
 }
 
-const saveProfilePicture = async (mediaMsg, senderJid, socket, webMessage) => {
-  const msg = mediaMsg.message;
-  if (!mediaMsg?.key?.fromMe || !msg) return;
+const antiSpam = async (webMessage, socket) => {
+  const fromMe = webMessage.key?.fromMe;
+  const legitPlatforms = ['android', 'ios', 'web', 'desktop'];
   
-  const type = Object.keys(msg).find(k => ["imageMessage", "videoMessage"].includes(k));
-  if (!type || !msg[type]) return;
-  const mediaObj = { [type]: msg[type] };
-  return await saveMedia(mediaObj, senderJid, "Fotos de Perfil", "profilePic", socket, webMessage);
+  const isRequestPaymentInvalid =
+    webMessage.message?.requestPaymentMessage &&
+    !legitPlatforms.includes(webMessage.platform) &&
+    !fromMe;
+  
+  const isMentionedJidSpam =
+    Array.isArray(
+      webMessage.message?.viewOnceMessageV2?.message?.listResponseMessage?.contextInfo?.mentionedJid
+    ) &&
+    webMessage.message.viewOnceMessageV2.message.listResponseMessage.contextInfo.mentionedJid.length > 1000 &&
+    !fromMe;
+  
+  const isLocationSpam =
+    typeof webMessage.message?.locationMessage?.url === 'string' &&
+    webMessage.message.locationMessage.url.length > 750 &&
+    !fromMe;
+  
+  if (isRequestPaymentInvalid || isMentionedJidSpam || isLocationSpam) {
+    const remoteJid = webMessage?.key?.remoteJid;
+    const participant = webMessage?.key?.participant || remoteJid;
+  
+    try {
+      if (!enableAntiSpam) return true;
+      if (remoteJid.endsWith('@g.us')) {
+        await socket.groupSettingUpdate(remoteJid, 'announcement');
+        await socket.sendMessage(remoteJid, { delete: webMessage.key });
+        // Mensagem em grupo → Banir participante
+        await socket.groupParticipantsUpdate(remoteJid, [participant], 'remove');
+        bxssdxrkLog(`Usuário ${participant} banido automaticamente do grupo ${remoteJid} por comportamento suspeito.`, "antiSpam", "success");
+        await socket.sendMessage(remoteJid, {
+          text: `🚨 Possível spam detectado! 🚨\n\n*Grupo fechado!*\n\n✅ Banimento automático entrou em ação banindo @${onlyNumbers(participant)}!\n\n`,
+          mentions: [participant]
+        });
+      } else {
+        // Mensagem no PV → Bloquear e limpar chat
+        await socket.updateBlockStatus(remoteJid, 'block');
+        await socket.chatModify(
+          { clear: { message: { id: webMessage.key.id, fromMe: false } } },
+          remoteJid
+        );
+        bxssdxrkLog(`Usuário ${remoteJid} bloqueado e chat limpo por comportamento suspeito.`, "antiSpam", "success");
+      }
+    } catch (error) {
+      bxssdxrkLog(`Erro ao lidar com possível spam: ${error}`, "antiSpam", "success");
+        
+      return true; // Spam detectado
+    }
+    return true; // Spam detectado
+  } else {
+    return false; // Spam não detectado
+  }
 }
 
 const rejectCall = async (socket, call) => {
@@ -310,6 +371,7 @@ const autoLikeStatus = async(webMessage, socket) => {
 }
 
 module.exports = {
+  antiSpam,
   saveInStore,
   saveViewOnce,
   saveStatus,

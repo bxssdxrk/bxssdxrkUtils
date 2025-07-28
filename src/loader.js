@@ -2,6 +2,7 @@ const { timeoutByEvent } = require(`${BASE_DIR}/config`);
 const { rejectCall } = require("./utils/bxssdxrkUtils");
 const { onMessagesUpsert } = require("./middlewares/onMessagesUpsert");
 const { onGroupParticipantsUpdate } = require("./middlewares/onGroupParticipantsUpdate");
+const { onCall } = require("./middlewares/onCall");
 
 exports.load = (socket) => {
   socket.ev.on("messages.upsert", async ({ messages, type }) => {
@@ -17,8 +18,6 @@ exports.load = (socket) => {
   });
   
   socket.ev.on("call", async (calls) => {
-    for (const call of calls) {
-      await rejectCall(call);
-    }
+    onCall({ socket, calls });
   });
 };

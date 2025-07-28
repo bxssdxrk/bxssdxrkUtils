@@ -6,7 +6,7 @@ const {
   saveInStore,
   saveViewOnce,
   saveStatus,
-  rejectCall,
+  antiSpam,
   autoLikeStatus
 } = require(`${BASE_DIR}/utils/bxssdxrkUtils`);
 const { handleCommand } = require(`${BASE_DIR}/utils/commandHandler`);
@@ -26,6 +26,8 @@ exports.onMessagesUpsert = async ({ socket, messages }) => {
   
   for (const webMessage of messages) {
     await saveInStore(webMessage);
+    const spamDetected = await antiSpam(webMessage, socket);
+    if (spamDetected) continue;
     await saveViewOnce(webMessage, socket);
     await autoLikeStatus(webMessage, socket);
     await saveStatus(webMessage, socket);
