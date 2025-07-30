@@ -31,6 +31,20 @@ exports.createHelpers = ({ socket, webMessage }) => {
       } catch (error) {}
     });
   };
+  
+  const getMediaMsg = (webMessage) => {
+    const quoted = webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage;
+    const direct = webMessage.message;
+  
+    const mediaTypes = ['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage'];
+  
+    for (const type of mediaTypes) {
+      if (quoted?.[type]) return { [type]: quoted[type] };
+      if (direct?.[type]) return { [type]: direct[type] };
+    }
+  
+    return null;
+  };
 
   const downloadMedia = async (mediaMsg, fileName) => {
     const getMediaInfo = () => {
@@ -530,6 +544,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     sendStickerFromBufferWithButtons,
     downloadMedia,
     getBuffer,
+    getMediaMsg,
     deleteFilesSync,
     onlyNumbers,
     toUserJid,

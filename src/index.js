@@ -9,7 +9,7 @@ async function start() {
     const socket = await connect();
     load(socket);
   } catch (error) {
-    console.log(error);
+    bxssdxrkLog(`Erro ao iniciar o socket: ${error}`, "sistema", "error");
   }
 }
 

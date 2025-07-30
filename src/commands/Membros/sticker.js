@@ -1,5 +1,6 @@
 const { prefix, tempDir, stickerMetadata } = require(`${BASE_DIR}/config`);
 const fs = require("fs");
+const path = require("path");
 const {
   convertMediaToSticker,
   convertMediaToStickerC,
@@ -43,6 +44,7 @@ module.exports = {
     isDocument,
     sendReply,
     downloadMedia,
+    getMediaMsg,
     sendStickerFromBuffer,
     sendErrorReply,
     sendWarningReply,
@@ -51,7 +53,7 @@ module.exports = {
   }) => {
     await sendWaitReact();
 
-    // Extrai info de vídeo, seja direto ou citado
+    // Extrai info de vídeo (citada ou direta)
     const videoMsg = webMessage.message?.videoMessage ||
       webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage?.videoMessage;
 
@@ -66,13 +68,13 @@ module.exports = {
       return await sendWarningReply(`O vídeo não pode ultrapassar 1MB! O seu tem ${fileSizeMB}MB.`);
     }
 
-    // Validação de tipo de mídia
+    // Validação básica de tipo de mídia
     if (!isImage && !isVideo && !isDocument) {
       return await sendErrorReply("Envie ou marque uma imagem, vídeo ou documento válido.");
     }
-    
+
     try {
-      // Validação do documento (se for o caso)
+      // Validação de documento (se for o caso)
       if (isDocument) {
         const docMsg = webMessage.message?.documentMessage ||
           webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage?.documentMessage;
@@ -85,29 +87,37 @@ module.exports = {
         }
       }
 
-      // Download da mídia em buffer
-      const inputBuffer = await downloadMedia(webMessage, `input-${Date.now()}`);
+      // Obtém a mídia correta
+      const mediaMsg = getMediaMsg(webMessage);
+      if (!mediaMsg) {
+        return await sendErrorReply("Nenhuma mídia válida encontrada.");
+      }
+
+      // Download da mídia para arquivo temporário
+      const inputPath = await downloadMedia(mediaMsg, `input-${Date.now()}`);
+      const buffer = fs.readFileSync(inputPath);
       const metadata = await loadStickerMetadata();
       const style = args[0]?.toLowerCase();
 
       let stickerOutput;
 
-      // Escolhe o conversor com base no estilo ('x', 'c' ou padrão)
+      // Escolhe estilo de figurinha
       switch (style) {
         case "c":
-          stickerOutput = await convertMediaToStickerC(inputBuffer, metadata);
+          stickerOutput = await convertMediaToStickerC(buffer, metadata);
           break;
         case "x":
-          stickerOutput = await convertMediaToStickerX(inputBuffer, metadata);
+          stickerOutput = await convertMediaToStickerX(buffer, metadata);
           break;
         default:
-          stickerOutput = await convertMediaToSticker(inputBuffer, metadata);
+          stickerOutput = await convertMediaToSticker(buffer, metadata);
           break;
       }
 
       await sendStickerFromBuffer(stickerOutput);
 
-      // Se a função retornar um caminho, apaga o arquivo (defensivo)
+      // Limpeza dos arquivos temporários
+      if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
       if (typeof stickerOutput === "string" && fs.existsSync(stickerOutput)) {
         fs.unlinkSync(stickerOutput);
       }

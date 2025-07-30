@@ -20,9 +20,7 @@ const {
 } = require(`${BASE_DIR}/utils/groupCache`);
 
 exports.onMessagesUpsert = async ({ socket, messages }) => {
-  if (!messages.length) {
-    return;
-  }
+  if (!messages.length) return;
   
   for (const webMessage of messages) {
     await saveInStore(webMessage);

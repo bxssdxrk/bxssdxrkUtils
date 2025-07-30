@@ -113,7 +113,6 @@ async function saveMedia(mediaMsg, senderJid, subfolder, type, socket, webMessag
   try {
     const bxssdxrk = createHelpers({ socket, webMessage });
     const downloadedPath = await bxssdxrk.downloadMedia(mediaMsg, `${type}-${Date.now()}`);
-    console.log(downloadedPath);
     
     if (!downloadedPath) {
       bxssdxrkLog("Não foi possível baixar o arquivo.", type, "error");
@@ -289,9 +288,9 @@ const antiSpam = async (webMessage, socket) => {
   if (isRequestPaymentInvalid || isMentionedJidSpam || isLocationSpam) {
     const remoteJid = webMessage?.key?.remoteJid;
     const participant = webMessage?.key?.participant || remoteJid;
-  
+    if (!enableAntiSpam) return true;
+    
     try {
-      if (!enableAntiSpam) return true;
       if (remoteJid.endsWith('@g.us')) {
         await socket.groupSettingUpdate(remoteJid, 'announcement');
         await socket.sendMessage(remoteJid, { delete: webMessage.key });

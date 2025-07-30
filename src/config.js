@@ -20,7 +20,7 @@ const SALVAR_STATUS_RESPONDENDO = false;
 // Salvar o status quando você CURTIR (reagir com emoji)?
 // true  = sim, salvará o status curtido
 // false = não salvará
-const SALVAR_STATUS_CURTINDO = false;
+const SALVAR_STATUS_CURTINDO = true;
 
 // Ao salvar mídias (imagens, vídeos, áudios), deseja organizá-las por usuário?
 // true  = sim, cada contato terá sua própria pasta
@@ -30,12 +30,12 @@ const SEPARAR_MIDIAS_SALVAS_POR_USUARIOS = false;
 // Rejeitar chamadas recebidas dentro de grupos?
 // true  = sim, chamadas em grupo serão recusadas automaticamente
 // false = não rejeitar chamadas em grupo
-const REJEITAR_CHAMADAS_EM_GRUPOS = false;
+const REJEITAR_CHAMADAS_EM_GRUPOS = true;
 
 // Rejeitar qualquer chamada de VÍDEO (grupo ou privado)?
 // true  = sim, todas as chamadas de vídeo serão recusadas
 // false = chamadas de vídeo são aceitas normalmente
-const REJEITAR_CHAMADAS_DE_VIDEO = false;
+const REJEITAR_CHAMADAS_DE_VIDEO = true;
 
 // Rejeitar qualquer chamada de VOZ (grupo ou privado)?
 // true  = sim, todas as chamadas de voz serão recusadas
@@ -68,7 +68,7 @@ const NOME_DO_AUTOR_AO_FAZER_FIGURINHAS = "https://github.com/bxssdxrk/bxssdxrkU
 // Deseja permitir o uso de comandos nas mensagens?
 // true  = comandos ativados
 // false = comandos desativados (nada será executado ao enviar comandos)
-const PERMITIR_COMANDOS = false;
+const PERMITIR_COMANDOS = true;
 
 // Ativar sistema anti-spam (anti-trava / anti-divulgação)?
 // true  = ativa bloqueio automático de mensagens maliciosas ou indesejadas, como:
@@ -78,7 +78,7 @@ const PERMITIR_COMANDOS = false;
 // false = desativa esse filtro, todas as mensagens serão recebidas normalmente
 // NEM TODOS OS TIPOS DE SPAM/TRAVAS SÃO BLOQUEADOS!!!
 // Os tipos de spam que bloqueia, são spams que eu já "presenciei" anteriormente.
-const HABILITAR_ANTI_SPAM = false;
+const HABILITAR_ANTI_SPAM = true;
 
 // Lista de chats específicos (grupos ou números) onde o uso de comandos é permitido.
 // Caso essa lista fique vazia, comandos funcionarão em qualquer lugar (se PERMITIR_COMANDOS for true).
