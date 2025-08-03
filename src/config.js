@@ -139,7 +139,8 @@ function ensureDirExists(dirPath) {
     fs.mkdirSync(dirPath, { recursive: true });
   }
 }
-[ 
+
+[
   databaseDir, tempDir, 
   commandsDir, savedFilesDir
 ].forEach(ensureDirExists);
