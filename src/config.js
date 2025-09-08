@@ -6,7 +6,7 @@ const fs = require("fs");
 // Informe seu número de telefone completo, SEM espaços, traços ou parênteses,
 // e incluindo o código do país (ex: Brasil = 55).
 // Exemplo correto: "5599999999999"
-const SEU_NUMERO = "555185069870";
+const SEU_NUMERO = "";
 
 // Emoji que será usado automaticamente para curtir os status dos seus contatos.
 // Exemplo: "💚". Deixe vazio ("") se não quiser curtir automaticamente.
@@ -20,7 +20,7 @@ const SALVAR_STATUS_RESPONDENDO = false;
 // Salvar o status quando você CURTIR (reagir com emoji)?
 // true  = sim, salvará o status curtido
 // false = não salvará
-const SALVAR_STATUS_CURTINDO = true;
+const SALVAR_STATUS_CURTINDO = false;
 
 // Ao salvar mídias (imagens, vídeos, áudios), deseja organizá-las por usuário?
 // true  = sim, cada contato terá sua própria pasta
@@ -30,7 +30,7 @@ const SEPARAR_MIDIAS_SALVAS_POR_USUARIOS = false;
 // Rejeitar chamadas recebidas dentro de grupos?
 // true  = sim, chamadas em grupo serão recusadas automaticamente
 // false = não rejeitar chamadas em grupo
-const REJEITAR_CHAMADAS_EM_GRUPOS = true;
+const REJEITAR_CHAMADAS_EM_GRUPOS = false;
 
 // Rejeitar qualquer chamada de VÍDEO (grupo ou privado)?
 // true  = sim, todas as chamadas de vídeo serão recusadas
@@ -68,7 +68,7 @@ const NOME_DO_AUTOR_AO_FAZER_FIGURINHAS = "https://github.com/bxssdxrk/bxssdxrkU
 // Deseja permitir o uso de comandos nas mensagens?
 // true  = comandos ativados
 // false = comandos desativados (nada será executado ao enviar comandos)
-const PERMITIR_COMANDOS = true;
+const PERMITIR_COMANDOS = false;
 
 // Ativar sistema anti-spam (anti-trava / anti-divulgação)?
 // true  = ativa bloqueio automático de mensagens maliciosas ou indesejadas, como:
