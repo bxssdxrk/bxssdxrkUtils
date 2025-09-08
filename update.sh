@@ -41,14 +41,14 @@ else
     # Aviso para quem não está usando git
     echo -e "${CYAN}💡 Dica:${NC} Você está usando uma versão baixada como ZIP."
     echo -e "   Recomendo apagar esta pasta e usar:"
-    echo -e "   ${YELLOW}git clone https://github.com/SEU_USUARIO/bxssdxrkUtils.git${NC}"
+    echo -e "   ${YELLOW}git clone https://github.com/bxssdxrk/bxssdxrkUtils.git${NC}"
     echo -e "   Assim você poderá atualizar no futuro sem precisar baixar ZIPs.\n"
 fi
 
 # Atualização via ZIP
 echo -e "${YELLOW}⬇️ Baixando versão mais recente...${NC}"
 TEMP_DIR=$(mktemp -d)
-ZIP_URL="https://github.com/SEU_USUARIO/bxssdxrkUtils/archive/refs/heads/main.zip"
+ZIP_URL="https://github.com/bxssdxrk/bxssdxrkUtils/archive/refs/heads/main.zip"
 
 if curl -L -o "$TEMP_DIR/bxssdxrkUtils.zip" "$ZIP_URL"; then
     echo -e "${YELLOW}📦 Extraindo arquivos...${NC}"
