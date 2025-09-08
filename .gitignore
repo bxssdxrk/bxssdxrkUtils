@@ -2,4 +2,4 @@ assets/auth/
 assets/temp/
 database/
 node_modules/
-# src/config.js
+src/config.js
