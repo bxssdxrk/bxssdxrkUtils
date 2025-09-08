@@ -1,9 +1,10 @@
 const { prefix } = require(`${BASE_DIR}/config`);
+const { bxssdxrkLog } = require(`${BASE_DIR}/utils`);
 const { toUserJid, onlyNumbers } = require(`${BASE_DIR}/utils`);
 const { hasGroupMetadata, getGroupMetadata } = require(`${BASE_DIR}/utils/groupCache`);
 
 module.exports = {
-  name: "Group Info",
+  name: "Informações do Grupo",
   description: "Pega as informações do grupo.",
   commands: ["gpinfo"],
   usage: `${prefix}gpinfo`,
@@ -150,8 +151,7 @@ ${description}
       });
       
     } catch (error) {
-      const errorCode = error.output?.payload?.statusCode;
-      console.log(error);
+      bxssdxrkLog(`Erro no comando ${commandName}: ${error}`, "Group Info", "error");
     }
   },
 };

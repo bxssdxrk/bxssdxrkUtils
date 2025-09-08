@@ -1,7 +1,7 @@
 {
   "author": "bxssdxrk.",
   "name": "bxssdxrkUtils",
-  "version": "1.0.9",
+  "version": "1.9.4",
   "description": "Conjunto de funções úteis pra usar no zapzap :3",
   "main": "./src/index.js",
   "scripts": {
@@ -12,7 +12,7 @@
   "keywords": [],
   "license": "ISC",
   "dependencies": {
-    "@itsukichan/baileys": "github:Itsukichann/Baileys",
+    "@itsukichan/baileys": "^7.3.1",
     "colors": "^1.4.0",
     "file-type": "^21.0.0",
     "fluent-ffmpeg": "^2.1.3",

@@ -43,7 +43,7 @@ async function processToSticker(mediaInput, metadata, ffmpegOptions) {
 
 async function convertMediaToSticker(mediaInput, metadata = {}) {
   const options = [
-    "-vcodec", "libwebp",
+    "-vcodec", "libwebp_anim",
     "-vf", `
       scale='if(gte(iw,ih),360,-1)':'if(gte(iw,ih),-1,360)',
       fps=24,
@@ -60,7 +60,7 @@ async function convertMediaToSticker(mediaInput, metadata = {}) {
 
 async function convertMediaToStickerC(mediaInput, metadata = {}) {
   const options = [
-    "-vcodec", "libwebp",
+    "-vcodec", "libwebp_anim",
     "-vf", `
       scale='if(gt(iw,ih),-1,360)':'if(gt(iw,ih),360,-1)',
       crop=360:360:(iw-360)/2:(ih-360)/2,
@@ -77,7 +77,7 @@ async function convertMediaToStickerC(mediaInput, metadata = {}) {
 
 async function convertMediaToStickerX(mediaInput, metadata = {}) {
   const options = [
-    "-vcodec", "libwebp",
+    "-vcodec", "libwebp_anim",
     "-vf", `
       scale=360:360,
       fps=24,

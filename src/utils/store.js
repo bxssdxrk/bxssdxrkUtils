@@ -38,7 +38,6 @@ function createStore(base = `${databaseDir}/store`) {
       const file = path.join(dir, id + '.json');
       writeJSON(file, { ...msg, timestamp: Date.now() });
     },
-    
     getMessage(key) {
       const remote = key?.remoteJid;
       const user = key?.participant || key?.remoteJid;
@@ -63,7 +62,6 @@ function createStore(base = `${databaseDir}/store`) {
     
       return messages;
     },
-    
     deleteOldMessages(ttlMs = 24 * 3600 * 1000) { // 24 Horas
     
       const msgsPath = path.join(base, 'messages');
@@ -95,7 +93,6 @@ function createStore(base = `${databaseDir}/store`) {
         }
       }
     },
-    
     saveStatus(jid, msg) {
       const userJid = msg?.key?.participant;
       const id = msg?.key?.id;
@@ -107,14 +104,12 @@ function createStore(base = `${databaseDir}/store`) {
       const file = path.join(dir, id + '.json');
       writeJSON(file, { ...msg, timestamp: Date.now() });
     },
-    
     getStatus(userJid, id) {
       if (!userJid || !id) return null;
     
       const file = path.join(base, 'status', userJid, id + '.json');
       return readJSON(file, null);
     },
-    
     deleteOldStatus(ttlMs = 24 * 3600 * 1000) { // 24 Horas
       const statusBase = path.join(base, 'status');
       if (!fs.existsSync(statusBase)) return;

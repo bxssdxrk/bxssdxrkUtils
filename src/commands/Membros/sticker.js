@@ -19,10 +19,10 @@ async function loadStickerMetadata() {
 // Valida se o tipo MIME ou extensão de arquivo é compatível com sticker
 function isValidMedia(mimeType = "", fileName = "") {
   const validMimeTypes = [
-    "image/jpeg", "image/png", "image/gif",
+    "image/jpeg", "image/png", "image/gif", "image/avif",
     "image/webp", "video/mp4", "video/webm",
   ];
-  const validExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".webm"];
+  const validExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".mp4", ".webm"];
 
   return (
     validMimeTypes.includes(mimeType) ||
@@ -115,7 +115,7 @@ module.exports = {
       
       return await sendSuccessReact();
     } catch (err) {
-      bxssdxrkLog(err);
+      bxssdxrkLog(err, "Fazer Figurinha", "error");
       return await sendErrorReply("Erro ao criar a figurinha. Veja o motivo no console.");
     }
   },

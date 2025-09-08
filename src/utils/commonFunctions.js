@@ -1,5 +1,6 @@
 const { getContentType, getDevice, downloadContentFromMessage } = require("@itsukichan/baileys");
 const axios = require("axios");
+const { bxssdxrkLog } = require(".");
 const { onlyNumbers, toUserJid, extractDataFromMessage } = require(".");
 const { commandPrefixes, tempDir } = require(`${BASE_DIR}/config`);
 const fs = require("fs");
@@ -618,6 +619,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     getBuffer,
     getMediaMsg,
     deleteFilesSync,
+    bxssdxrkLog,
     onlyNumbers,
     toUserJid,
   };

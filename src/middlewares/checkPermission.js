@@ -28,7 +28,7 @@ exports.checkPermission = async ({ type, socket, userJid, remoteJid }) => {
     participant.id === owner || participant.admin === "superadmin";
 
   const isAdmin = participant.admin === "admin";
-
+  
   const isOwnUser = toUserJid(ownNumber) === userJid;
   
   if (type === "Admins") {

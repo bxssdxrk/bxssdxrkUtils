@@ -4,11 +4,13 @@ const { toUserJid, onlyNumbers } = require(`${BASE_DIR}/utils`);
 module.exports = {
   name: "saveProfilePicture",
   description: "Salva a imagem de perfil do usuário/grupo no seu armazenamento.",
-  commands: ["perfil", "fotodeperfil", "imagemdeperfil", "pfp"], // comando2 é opcional
+  commands: ["perfil", "fotodeperfil", "imagemdeperfil", "pfp"],
   usage: `${prefix}pfp @usuário (ou respondendo)`,
   handle: async ({ 
     socket,
     args,
+    remoteJid,
+    replyJid,
     sendWaitReact,
     sendImageFromURL,
     sendErrorReply,
@@ -17,10 +19,7 @@ module.exports = {
     try {
       await sendWaitReact();
       let toGetPP = toUserJid(args[0]) || replyJid || remoteJid;
-      
       if (!toGetPP) return await sendWarningReply("Especifique um usuário.");
-      
-      const fileName = `bxssdxrkUtils-${onlyNumbers(toGetPP)}.png`;
       const ppURL = await socket.profilePictureUrl(toGetPP, 'image');
       
       await sendImageFromURL(ppURL, {
@@ -33,9 +32,10 @@ module.exports = {
       if (errorCode === 500) {
         return await sendErrorReply(`A imagem de perfil do usuário não é pública ou este número não está no WhatsApp. Verifique o número e tente novamente. Não foi possível baixar a imagem.`);
       }
-      if (error === 408) {
+      if (errorCode === 408) {
         return await sendErrorReply(`Não foi possível baixar a imagem de perfil do usuário pois o WhatsApp demorou demais para responder.`);
       }
+      return sendErrorReply(`Erro desconhecido:\n${error}`);
     }
-  },
+  }
 };
