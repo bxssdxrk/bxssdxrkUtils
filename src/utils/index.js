@@ -73,9 +73,9 @@ const bxssdxrkBanner = () => {
     '░█▀▄░█░█░▄▀▀░▄▀▀░█▀▄░█░█░█▀▄░█░█░░░',
     '░█░█░█░█░█░░░█░░░█░█░█░█░█░█░█░█░░░',
     '░█▀▄░▄▀▄░▀▀▄░▀▀▄░█░█░▄▀▄░█▀▄░█▀▄░░░',
-    '░█░█░█░█░░░█░░░█░█░█░█░█░█░█░█░█░░░',
-    '░█░█░█░█░░░█░░░█░█░█░█░█░█░█░█░█░░░',
-    '░▀▀░░▀░▀░▀▀░░▀▀░░▀▀░░▀░▀░▀░▀░▀░▀░░░',
+    '░█░█░█░█░░░█░░░█░█░█░█░█░█░█░█░░░',
+    '░█░█░█░█░░░█░░░█░█░█░█░█░█░█░█░▄░',
+    '░▀▀░░▀░▀░▀▀░░▀▀░░▀▀░░▀░▀░▀░▀░▀░▀░',
   ];
   
   lines.forEach((line, index) => {
@@ -117,6 +117,7 @@ const deepGet = (obj, paths) => {
 };
 
 const extractDataFromMessage = (webMessage, commandPrefixes = ['.', '!', '/']) => {
+  // Caminhos possíveis para o texto completo da mensagem
   const fullMessagePaths = [
     'message.conversation',
     'message.extendedTextMessage.text',
