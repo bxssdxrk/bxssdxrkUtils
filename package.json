@@ -1,0 +1,24 @@
+{
+  "author": "bxssdxrk.",
+  "name": "bxssdxrkUtils",
+  "version": "1.9.6",
+  "description": "Conjunto de funções úteis pra usar no zapzap :3",
+  "main": "./src/index.js",
+  "scripts": {
+    "start": "bash start.sh",
+    "commit": "bash newCommit.sh",
+    "bxssdxrkUtils": "node ./src/index.js"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "dependencies": {
+    "@itsukichan/baileys": "^7.3.1",
+    "colors": "^1.4.0",
+    "file-type": "^21.0.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "node-cache": "^5.1.2",
+    "node-fetch": "^3.3.2",
+    "node-webpmux": "^3.2.1",
+    "pino": "^9.7.0"
+  }
+}
