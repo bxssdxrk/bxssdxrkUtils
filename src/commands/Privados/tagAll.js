@@ -1,4 +1,4 @@
-const { prefix } = require(`${BASE_DIR}/config`);
+const { prefix, commandPrefixes } = require(`${BASE_DIR}/config`);
 const fs = require("fs");
 const {
   hasGroupMetadata,
@@ -42,7 +42,9 @@ module.exports = {
       const argsText = args.join(" ");
       let text = quotedText || argsText;
       
-      return text.startsWith(prefix) ? text.slice(prefix.length) : text;
+      return commandPrefixes.some(p => text.startsWith(p))
+        ? text.slice(prefix.length)
+        : text;
     };
     
     const text = getTextContent();
@@ -52,7 +54,9 @@ module.exports = {
       const videoCaption = quotedMessage?.videoMessage?.caption;
       const caption = imageCaption || videoCaption;
       
-      return caption?.startsWith(prefix) ? caption.slice(prefix.length) : caption;
+      return commandPrefixes.some(p => caption?.startsWith(p))
+        ? caption.slice(prefix.length) 
+        : caption;
     };
     
     const caption = getCaption();
