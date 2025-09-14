@@ -37,14 +37,23 @@ module.exports = {
     const contextInfo = webMessage?.message?.extendedTextMessage?.contextInfo;
     const quotedMessage = contextInfo?.quotedMessage;
     
+    const removePrefix = (text) => {
+      if (!text) return text;
+      
+      for (const p of commandPrefixes) {
+        if (text.startsWith(p)) {
+          return text.slice(p.length);
+        }
+      }
+      return text;
+    };
+    
     const getTextContent = () => {
       const quotedText = quotedMessage?.conversation || quotedMessage?.extendedTextMessage?.text;
       const argsText = args.join(" ");
-      let text = quotedText || argsText;
+      const text = quotedText || argsText;
       
-      return commandPrefixes.some(p => text.startsWith(p))
-        ? text.slice(prefix.length)
-        : text;
+      return removePrefix(text);
     };
     
     const text = getTextContent();
@@ -54,9 +63,7 @@ module.exports = {
       const videoCaption = quotedMessage?.videoMessage?.caption;
       const caption = imageCaption || videoCaption;
       
-      return commandPrefixes.some(p => caption?.startsWith(p))
-        ? caption.slice(prefix.length) 
-        : caption;
+      return removePrefix(caption);
     };
     
     const caption = getCaption();
@@ -71,10 +78,15 @@ module.exports = {
     let messageContent = {};
     
     try {
-      if (isImage) {
+      const hasMedia = isImage || isVideo || isAudio || isSticker;
+      
+      if (hasMedia) {
         const mediaMsg = getMediaMsg(webMessage);
-        mediaFile = await downloadMedia(mediaMsg, `tagall-image-${Date.now()}`);
-        
+        const mediaType = isImage ? 'image' : isVideo ? 'video' : isAudio ? 'audio' : 'sticker';
+        mediaFile = await downloadMedia(mediaMsg, `tagall-${mediaType}-${Date.now()}`);
+      }
+      
+      if (isImage) {
         messageContent = {
           image: fs.readFileSync(mediaFile),
           caption: caption || text,
@@ -82,9 +94,6 @@ module.exports = {
           mentions
         };
       } else if (isVideo) {
-        const mediaMsg = getMediaMsg(webMessage);
-        mediaFile = await downloadMedia(mediaMsg, `tagall-video-${Date.now()}`);
-        
         messageContent = {
           video: fs.readFileSync(mediaFile),
           caption: caption || text,
@@ -92,9 +101,6 @@ module.exports = {
           mentions
         };
       } else if (isAudio) {
-        const mediaMsg = getMediaMsg(webMessage);
-        mediaFile = await downloadMedia(mediaMsg, `tagall-audio-${Date.now()}`);
-        
         messageContent = {
           audio: fs.readFileSync(mediaFile),
           mimetype: "audio/ogg; codecs=opus",
@@ -103,9 +109,6 @@ module.exports = {
           mentions
         };
       } else if (isSticker) {
-        const mediaMsg = getMediaMsg(webMessage);
-        mediaFile = await downloadMedia(mediaMsg, `tagall-sticker-${Date.now()}`);
-        
         messageContent = {
           sticker: fs.readFileSync(mediaFile),
           mentions
@@ -116,6 +119,7 @@ module.exports = {
           mentions
         };
       }
+      
       await socket.sendMessage(remoteJid, messageContent, { quoted: webMessage });
       await sendReact("📢");
       
