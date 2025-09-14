@@ -50,7 +50,12 @@ Para instalar esse projeto, basta seguir os passos abaixo:
 
 7. Configurar o arquivo de configuração
 
-    Abra o [arquivo de configuração](./src/config.js) e configure como preferir.
+    Abra o arquivo de configuração:
+    ```bash
+    npm run config
+    ```
+    Escolha seu app de edição de texto preferido. Configure como quiser e não esqueça de salvar.
+    
 
 8. Iniciar o script
 
@@ -59,39 +64,6 @@ Para instalar esse projeto, basta seguir os passos abaixo:
     ```
   
 9. Coloque seu número (EXEMPLO: 555188889999), copie o código de pareamento e conecte no WhatsApp (deve chegar uma notificação do WhatsApp. clique nela e cole o código de pareamento)
-
-## Como que instala?
-
-Para usar esse projeto, basta seguir os passos abaixo:
-
-1. Clone o repositório:
-
-   ```bash
-   git clone https://github.com/bxssdxrk/bxssdxrkUtils.git
-   ```
-
-2. Entre na pasta do projeto:
-
-   ```bash
-   cd bxssdxrkUtils
-   ```
-
-3. Instale as dependências com o `npm`:
-> Essas tags são opcionais, se estiver com problemas ao instalar, remova
-
-   ```bash
-   npm install --no-bin-links --ignore-scripts
-   ```
-
-4. Abra o [arquivo de configuração](./src/config.js) e configure como preferir.
-
-5. Inicie o script com:
-
-   ```bash
-   npm start
-   ```
-
-6. Coloque seu número (EXEMPLO: 555188889999), copie o código de pareamento e conecte no WhatsApp (deve chegar uma notificação do WhatsApp. clique nela e cole o código de pareamento)
 
 ## E pra que serve essa bosta?
 

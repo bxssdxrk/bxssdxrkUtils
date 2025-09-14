@@ -2,11 +2,13 @@
   "author": "bxssdxrk.",
   "name": "bxssdxrkUtils",
   "version": "1.10.1",
-  "description": "Conjunto de funções úteis pra usar no zapzap :3",
+  "description": "Coletivo de funções úteis pra usar no zapzap :p",
   "main": "./src/index.js",
   "scripts": {
     "start": "bash start.sh",
     "commit": "bash newCommit.sh",
+    "config": "am start -a android.intent.action.VIEW -d \"file://$(realpath ./src/config.js)\" -t \"text/plain\"",
+    "update": "bash update.sh",
     "bxssdxrkUtils": "node ./src/index.js"
   },
   "keywords": [],

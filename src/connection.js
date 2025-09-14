@@ -92,8 +92,7 @@ async function connect() {
     const { connection, lastDisconnect } = update;
 
     if (connection === "close") {
-      const statusCode =
-        lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      const statusCode = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
 
       if (statusCode === DisconnectReason.loggedOut) {
         bxssdxrkLog("Script desconectado!", "sistema", "error");
