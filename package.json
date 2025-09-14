@@ -1,7 +1,7 @@
 {
   "author": "bxssdxrk.",
   "name": "bxssdxrkUtils",
-  "version": "1.9.6",
+  "version": "1.10.0",
   "description": "Conjunto de funções úteis pra usar no zapzap :3",
   "main": "./src/index.js",
   "scripts": {

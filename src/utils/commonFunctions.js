@@ -552,16 +552,13 @@ exports.createHelpers = ({ socket, webMessage }) => {
       ...optionalParams
     }, { quoted: webMessage });
   };
-<<<<<<< HEAD
   
   const sendAlbumMessage = async (albumItems, optionalParams = {}) => {
     return await socket.sendAlbumMessage(remoteJid, 
       albumItems,
-      { ...optionalParams }
-    , { quoted: webMessage });
+      { ...optionalParams },
+      { quoted: webMessage });
   };
-=======
->>>>>>> origin/main
 
   return {
     remoteJid, 
@@ -583,10 +580,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     isSticker,
     isAudio,
     isDocument,
-<<<<<<< HEAD
     sendAlbumMessage,
-=======
->>>>>>> origin/main
     sendSuccessReact,
     sendWaitReact,
     sendWarningReact,

@@ -2,7 +2,6 @@
 
 Fiz esse script com algumas funçõeszinhas massa pra eu usar no zapzap :3
 
-<<<<<<< HEAD
 E sim, é vibe-coded :p
 
 ## Como que instala?
@@ -42,7 +41,8 @@ Para instalar esse projeto, basta seguir os passos abaixo:
     ```
 
 6. Instalar dependências do projeto
-> Essas flags são opcionais, se der problema ao instalar, remova elas.
+
+    Essas flags são opcionais, se der problema ao instalar, remova elas.
 
     ```bash
     npm install --no-bin-links --ignore-scripts
@@ -59,7 +59,7 @@ Para instalar esse projeto, basta seguir os passos abaixo:
     ```
   
 9. Coloque seu número (EXEMPLO: 555188889999), copie o código de pareamento e conecte no WhatsApp (deve chegar uma notificação do WhatsApp. clique nela e cole o código de pareamento)
-=======
+
 ## Como que instala?
 
 Para usar esse projeto, basta seguir os passos abaixo:
@@ -92,7 +92,6 @@ Para usar esse projeto, basta seguir os passos abaixo:
    ```
 
 6. Coloque seu número (EXEMPLO: 555188889999), copie o código de pareamento e conecte no WhatsApp (deve chegar uma notificação do WhatsApp. clique nela e cole o código de pareamento)
->>>>>>> origin/main
 
 ## E pra que serve essa bosta?
 
@@ -106,13 +105,10 @@ Aqui estão algumas das funções disponíveis:
 
 * **`Auto-curtir Status`**: Curte os status recebidos. (configurável no [arquivo de configuração](./src/config.js))
 
-<<<<<<< HEAD
 ## Que bosta hein, bxssdxrk...
 
 Eu sei `,:j
 
-=======
->>>>>>> origin/main
 ## Quero contribuir no projeto, mas como?
 
 Se quiser contribuir, fique à vontade para abrir uma pull request. Vou analisar e, se estiver tudo certo, vou integrar suas melhorias :3
@@ -145,8 +141,4 @@ Se quiser contribuir, fique à vontade para abrir uma pull request. Vou analisar
 > * Se você pagou por isso, **foi enganado**.
 > * Esse projeto é e sempre será **gratuito**. Denuncie quem comercializa algo que nunca teve preço.
 
-<<<<<<< HEAD
 Veja o arquivo [LICENSE](./LICENSE) para mais detalhes.
-=======
-Veja o arquivo [LICENSE](./LICENSE) para mais detalhes.
->>>>>>> origin/main
