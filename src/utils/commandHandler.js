@@ -61,12 +61,12 @@ exports.handleCommand = async (paramsHandler) => {
     
     const texts = [
       `Comando: ${prefix}${commandName} (${type})`,
-      `Usuário: ${(webMessage?.pushName ?? "Desconhecido").trim()}`,
+      `Usuário: ${(webMessage?.pushName ?? "Desconhecido")}`,
       `Horário: ${dayAndHour}`,
     ];
     
     if (debug) {
-      texts.push(`Argumentos: ${args.trim()}`);
+      texts.push(`Argumentos: ${args}`);
     }
     
     if (isJid && userNumber) {
@@ -83,12 +83,12 @@ exports.handleCommand = async (paramsHandler) => {
         const { subject, id } = metadata;
     
         if (debug && id) {
-          texts.push(`Grupo ID: ${id.trim()}`);
+          texts.push(`Grupo ID: ${id}`);
         } else if (subject) {
-          texts.push(`Grupo: ${subject.trim()}`);
+          texts.push(`Grupo: ${subject}`);
         }
       } else {
-        texts.push(`Grupo ID: ${remoteJid.trim()}`);
+        texts.push(`Grupo ID: ${remoteJid}`);
       }
     }
     
