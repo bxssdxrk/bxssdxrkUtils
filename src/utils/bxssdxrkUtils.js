@@ -63,6 +63,7 @@ const {
   rejectPrivateCall,
   rejectSpecificPrivateCalls,
   timeoutByEvent,
+  ownNumber,
   debug,
 } = require(`${BASE_DIR}/config`);
 const { 
@@ -75,7 +76,7 @@ const {
   isGroupCacheEmpty
 } = require("./groupCache");
 const { createHelpers } = require("./commonFunctions");
-const { bxssdxrkLog, onlyNumbers } = require(".");
+const { bxssdxrkLog, onlyNumbers, toUserJid } = require(".");
 
 const createStore = require("./store");
 const store = createStore();
@@ -420,16 +421,20 @@ const rejectCall = async (socket, call) => {
 }
 
 const autoLikeStatus = async(webMessage, socket) => {
-  const key = webMessage?.key;
-  const { remoteJid, fromMe, participant } = key || {};
-  const userJid = participant || webMessage?.participant || remoteJid;
+  const { key } = webMessage || {};
+  const { remoteJid, remoteJidAlt, fromMe } = key || {};
+  
+  const userJid = webMessage?.participant || webMessage?.participantAlt || key?.participant || webMessage?.key?.participantAlt || remoteJidAlt || remoteJid;
+  
   const isStatus = webMessage?.broadcast || remoteJid === "status@broadcast";
   const isReaction = Boolean(webMessage?.message?.reactionMessage);
-  const ownJid = socket?.user?.id;
+  const ownJid = toUserJid(ownNumber);
   const emoji = autoLikeStatusEmoji;
   
   if (!emoji || !key || !userJid || !ownJid || !isStatus || fromMe || isReaction) return;
+  
   autoLiked = true;
+  
   await socket.sendMessage(remoteJid, {
     react: { 
       key, 
