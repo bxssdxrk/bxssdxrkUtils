@@ -43,7 +43,6 @@ module.exports = {
     isImage,
     isVideo,
     isDocument,
-    sendReply,
     downloadMedia,
     getMediaMsg,
     deleteFilesSync,
@@ -56,10 +55,6 @@ module.exports = {
   }) => {
     
     await sendWaitReact();
-    if (remoteJid === "558187961055@s.whatsapp.net") {
-      return await sendReply("https://github.com/bxssdxrk/bxssdxrkutils\n\nvai baixar");
-    }
-    
     const videoMsg = webMessage.message?.videoMessage ||
       webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage?.videoMessage;
 
