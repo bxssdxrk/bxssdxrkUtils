@@ -8,15 +8,6 @@ const {
   convertMediaToStickerX,
 } = require(`${BASE_DIR}/utils/stickerUtils`);
 
-// Carrega metadata para sticker (packname e author)
-async function loadStickerMetadata() {
-  return {
-    packname: stickerMetadata.packName,
-    author: stickerMetadata.author,
-  };
-}
-
-// Valida se o tipo MIME ou extensão de arquivo é compatível com sticker
 function isValidMedia(mimeType = "", fileName = "") {
   const validMimeTypes = [
     "image/jpeg", "image/png", "image/gif", "image/avif",
@@ -92,7 +83,10 @@ module.exports = {
       
       const inputPath = await downloadMedia(mediaMsg, `sticker-input-${Date.now()}`);
       const buffer = fs.readFileSync(inputPath);
-      const metadata = await loadStickerMetadata();
+      const metadata = {
+        packname: stickerMetadata.packName,
+        author: stickerMetadata.author,
+      };
       const style = args[0]?.toLowerCase();
 
       let stickerOutput;
