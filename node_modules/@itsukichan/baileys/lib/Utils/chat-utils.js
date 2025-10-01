@@ -474,6 +474,17 @@ const chatModificationToAppPatch = (mod, jid) => {
             operation: mod.contact ? OP.SET : OP.REMOVE
         }
     }
+    else if ('disableLinkPreviews' in mod) {
+    	patch = {
+    		syncAction: {
+    			privacySettingDisableLinkPreviewsAction: mod.disableLinkPreviews || {}
+    		}, 
+    		index: ['setting_disableLinkPreviews'], 
+    		type: 'regular', 
+    		apiVersion: 8, 
+    		operation: OP.SET
+    	}
+    }
     else if ('star' in mod) {
         const key = mod.star.messages[0]
         patch = {
@@ -512,6 +523,23 @@ const chatModificationToAppPatch = (mod, jid) => {
             type: 'critical_block',
             apiVersion: 1,
             operation: OP.SET,
+        }
+    }
+    else if ('quickReply' in mod) {
+        patch = {
+            syncAction: {
+                quickReplyAction: {
+                    count: 0,
+                    deleted: mod.quickReply.deleted || false,
+                    keywords: [],
+                    message: mod.quickReply.message || '',
+                    shortcut: mod.quickReply.shortcut || ''
+                }
+            },
+            index: ['quick_reply', mod.quickReply.timestamp || String(Math.floor(Date.now() / 1000))],
+            type: 'regular',
+            apiVersion: 2,
+            operation: OP.SET
         }
     }
     else if ('addLabel' in mod) {
@@ -675,7 +703,7 @@ const processSyncAction = (syncAction, ev, me, initialSyncOpts, logger) => {
             id, 
             name: action.contactAction.fullName, 
             lid: action.contactAction.lidJid || undefined, 
-            jid: WABinary_1.isJidUser(id) ? id : undefined
+            phoneNumber: action.contactAction.pnJid || undefined
         }]) 
     }
     else if (action?.pushNameSetting) {

@@ -1,6 +1,6 @@
 const { connect } = require("./connection");
 const { load } = require("./loader");
-const { bxssdxrkBanner, bxssdxrkLog, checkForUpdates } = require("./utils");
+const { bxssdxrkBanner, bxssdxrkLog, checkForUpdates, clearTempDir } = require("./utils");
 const { createHelpers } = require("./utils/commonFunctions");
 
 async function start() {
@@ -10,6 +10,7 @@ async function start() {
     bxssdxrkLog("Iniciando, aguarde!", "sistema", "info");
     const socket = await connect();
     load(socket);
+    clearTempDir();
   } catch (error) {
     bxssdxrkLog(`Erro ao iniciar o socket: ${error}`, "sistema", "error");
   }

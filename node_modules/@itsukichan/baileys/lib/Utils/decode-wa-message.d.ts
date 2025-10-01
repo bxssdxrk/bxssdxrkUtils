@@ -7,6 +7,12 @@ export declare const NO_MESSAGE_FOUND_ERROR_TEXT = "Message absent from node"
 
 export declare const MISSING_KEYS_ERROR_TEXT = "Key used already or never filled"
 
+export declare const DECRYPTION_RETRY_CONFIG: {
+    maxRetries: number
+    baseDelayMs: number
+    sessionRecordErrors: string[]
+}
+
 export declare const NACK_REASONS: {
     ParsingError: number
     UnrecognizedStanza: number
@@ -21,6 +27,12 @@ export declare const NACK_REASONS: {
     UnsupportedAdminRevoke: number
     UnsupportedLIDGroup: number
     DBOperationFailed: number
+}
+
+export declare const extractAddressingContext: (stanza: BinaryNode) => {
+    addressingMode: string
+    senderAlt: string | undefined
+    recipientAlt: string | undefined
 }
 
 /**

@@ -12,6 +12,13 @@ const NO_MESSAGE_FOUND_ERROR_TEXT = 'Message absent from node'
 
 const MISSING_KEYS_ERROR_TEXT = 'Key used already or never filled'
 
+// Retry configuration for failed decryption
+const DECRYPTION_RETRY_CONFIG = {
+    maxRetries: 3,
+    baseDelayMs: 100,
+    sessionRecordErrors: ['No session record', 'SessionError: No session record']
+}
+
 const NACK_REASONS = {
     ParsingError: 487,
     UnrecognizedStanza: 488,
@@ -28,6 +35,59 @@ const NACK_REASONS = {
     DBOperationFailed: 552
 }
 
+const extractAddressingContext = (stanza) => {
+	const addressingMode = stanza.attrs.addressing_mode
+    let senderAlt
+    let recipientAlt
+    
+    const sender = stanza.attrs.participant || stanza.attrs.from
+    
+    if (WABinary_1.isLidUser(sender)) {
+        // Message is LID-addressed: sender is LID, extract corresponding PN
+        // without device data
+        senderAlt = stanza.attrs.participant_pn || stanza.attrs.sender_pn || stanza.attrs.peer_recipient_pn
+        recipientAlt = stanza.attrs.recipient_pn
+        // with device data
+        if (sender && senderAlt)
+            senderAlt = WABinary_1.transferDevice(sender, senderAlt)
+    }
+    
+    else if (WABinary_1.isJidUser(sender)) { 
+        // Message is PN-addressed: sender is PN, extract corresponding LID
+        // without device data
+        senderAlt = stanza.attrs.participant_lid || stanza.attrs.sender_lid || stanza.attrs.peer_recipient_lid
+        recipientAlt = stanza.attrs.recipient_lid
+        //with device data
+        if (sender && senderAlt)
+            senderAlt = WABinary_1.transferDevice(sender, senderAlt)
+    }
+    return {
+        addressingMode,
+        senderAlt,
+        recipientAlt
+    }
+}
+
+const getDecryptionJid = async (sender, repository) => {
+    if (!sender.includes('@s.whatsapp.net')) {
+        return sender
+    }
+    return (await repository.getLIDMappingStore().getLIDForPN(sender))
+}
+
+const storeMappingFromEnvelope = async (stanza, sender, decryptionJid, repository, logger) => {
+    const { senderAlt } = extractAddressingContext(stanza)
+    if (senderAlt && WABinary_1.isLidUser(senderAlt) && WABinary_1.isJidUser(sender) && decryptionJid === sender) {
+        try {
+            await repository.storeLIDPNMapping(senderAlt, sender)
+            logger.debug({ sender, senderAlt }, 'Stored LID mapping from envelope')
+        }
+        catch (error) {
+            logger.warn({ sender, senderAlt, error }, 'Failed to store LID mapping')
+        }
+    }
+}
+
 /**
  * Decode the received node as a message.
  * @note this will only parse the message, not decrypt it
@@ -40,6 +100,7 @@ function decodeMessageNode(stanza, meId, meLid) {
     const from = stanza.attrs.from
     const participant = stanza.attrs.participant
     const recipient = stanza.attrs.recipient
+    const addressingContext = extractAddressingContext(stanza) 
     const isMe = (jid) => WABinary_1.areJidsSameUser(jid, meId)
     const isMeLid = (jid) => WABinary_1.areJidsSameUser(jid, meLid)
     if (WABinary_1.isJidUser(from)) {
@@ -102,9 +163,11 @@ function decodeMessageNode(stanza, meId, meLid) {
     const pushname = stanza?.attrs?.notify
     const key = {
         remoteJid: chatId,
+        remoteJidAlt: !WABinary_1.isJidGroup(chatId) ? addressingContext.senderAlt : undefined,
         fromMe,
         id: msgId,
-        participant
+        participant,
+        participantAlt: WABinary_1.isJidGroup(chatId) ? addressingContext.senderAlt : undefined,
     }
     const fullMessage = {
         key,
@@ -144,6 +207,9 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
                         const details = WAProto_1.proto.VerifiedNameCertificate.Details.decode(cert.details)
                         fullMessage.verifiedBizName = details.verifiedName
                     }
+                    if (tag === 'unavailable' && attrs.type === 'view_once') {
+                        fullMessage.key.isViewOnce = true; // TODO: remove from here and add a STUB TYPE
+                    }
                     if (tag !== 'enc' && tag !== 'plaintext') {
                         continue
                     }
@@ -152,6 +218,12 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
                     }
                     decryptables += 1
                     let msgBuffer
+                    const user = WABinary_1.isJidUser(sender) ? sender : author // TODO: flaky logic
+                    const decryptionJid = await getDecryptionJid(user, repository)
+                    
+                    if (tag !== 'plaintext') {
+                        await storeMappingFromEnvelope(stanza, user, decryptionJid, repository, logger)
+                    }
                     try {
                         const e2eType = tag === 'plaintext' ? 'plaintext' : attrs.type
                         switch (e2eType) {
@@ -164,9 +236,8 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
                                 break
                             case 'pkmsg':
                             case 'msg':
-                                const user = WABinary_1.isJidUser(sender) ? sender : author
                                 msgBuffer = await repository.decryptMessage({
-                                    jid: user,
+                                    jid: decryptionJid,
                                     type: e2eType,
                                     ciphertext: content
                                 })
@@ -199,12 +270,21 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
                         }
                     }
                     catch (err) {
-                        logger.error({ key: fullMessage.key, err }, 'failed to decrypt message')
+                        const errorContext = {
+                            key: fullMessage.key,
+                            err,
+                            messageType: tag === 'plaintext' ? 'plaintext' : attrs.type,
+                            sender,
+                            author,
+                            isSessionRecordError: isSessionRecordError(err)
+                        }
+                        logger.error(errorContext, 'failed to process sender key distribution message')
                         fullMessage.messageStubType = WAProto_1.proto.WebMessageInfo.StubType.CIPHERTEXT
-                        fullMessage.messageStubParameters = [err.message]
+                        fullMessage.messageStubParameters = [err.message.toString()]
                     }
                 }
             }
+            
             // if nothing was found to decrypt
             if (!decryptables) {
                 fullMessage.messageStubType = WAProto_1.proto.WebMessageInfo.StubType.CIPHERTEXT
@@ -214,7 +294,20 @@ const decryptMessageNode = (stanza, meId, meLid, repository, logger) => {
     }
 }
 
+/**
+ * Utility function to check if an error is related to missing session record
+ */
+function isSessionRecordError(error) {
+    const errorMessage = error?.message || error?.toString() || ''
+    return DECRYPTION_RETRY_CONFIG.sessionRecordErrors.some(errorPattern => errorMessage.includes(errorPattern))
+}
+
 module.exports = {
+  NACK_REASONS, 
   decodeMessageNode, 
-  decryptMessageNode
+  decryptMessageNode, 
+  extractAddressingContext, 
+  MISSING_KEYS_ERROR_TEXT, 
+  DECRYPTION_RETRY_CONFIG, 
+  NO_MESSAGE_FOUND_ERROR_TEXT
 }

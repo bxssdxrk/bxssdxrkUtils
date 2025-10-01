@@ -3,9 +3,9 @@ const fs = require("fs");
 
 // ==================== CONFIGURAÇÕES PRIMÁRIAS ==================== //
 
-// Informe seu número de telefone completo, SEM espaços, traços ou parênteses,
+// Informe seu número exatamente como está no WhatsApp, mas sem caracteres adicionais, apenas os números
 // e incluindo o código do país (ex: Brasil = 55).
-// Exemplo correto: "5599999999999"
+// Exemplo correto: "551140028922"
 const SEU_NUMERO = "";
 
 // Emoji que será usado automaticamente para curtir os status dos seus contatos.
@@ -56,6 +56,11 @@ const PREFIXOS_DOS_COMANDOS = [
   "!"
 ];
 
+// Se desativado, quando o script estiver ligado/conectado, sua presença sempre será "Online" e você não receberá notificações de mensagens.
+// true = Você recebe notificações de mensagens normalmente.
+// false = Sempre "Online" e você NÃO recebe notificações de mensagens.
+const RECEBER_NOTIFICACOES_QUANDO_CONECTADO = true;
+
 // Nome que será mostrado como "pacote" nas figurinhas criadas.
 // Pode ser qualquer nome, isso é apenas por estética
 const NOME_DO_PACOTE_AO_FAZER_FIGURINHAS = "bxssdxrkUtils!";
@@ -70,11 +75,13 @@ const NOME_DO_AUTOR_AO_FAZER_FIGURINHAS = "https://github.com/bxssdxrk/bxssdxrkU
 // false = comandos desativados (nada será executado ao enviar comandos)
 const PERMITIR_COMANDOS = false;
 
+// Registra os comandos no console. Útil para debugar ou monitorar o uso de comandos.
+const REGISTRAR_COMANDOS = true;
+
 // Ativar sistema anti-spam (anti-trava / anti-divulgação)?
 // true  = ativa bloqueio automático de mensagens maliciosas ou indesejadas, como:
 //    - mensagens com padrões de trava (ex: símbolos, JSONs gigantes)
 //    - tipos mensagens de divulgação conhecidas
-//    - arquivos potencialmente perigosos
 // false = desativa esse filtro, todas as mensagens serão recebidas normalmente
 // NEM TODOS OS TIPOS DE SPAM/TRAVAS SÃO BLOQUEADOS!!!
 // Os tipos de spam que bloqueia, são spams que eu já "presenciei" anteriormente.
@@ -97,12 +104,15 @@ const REJEITAR_CHAMADAS_PRIVADAS_ESPECIFICAS = [
   // "555155554444"      
 ];
 
-// Tempo de espera entre eventos iguais, como mensagens ou comandos repetidos.
+// Tempo de espera do bot entre eventos, como envio de mensagens...
 // Esse intervalo (em milissegundos) ajuda a evitar spam ou bloqueios por excesso de atividade.
-// Exemplo: 700 significa que espera 0,7 segundos entre repetições.
-const TIMEOUT_IN_MILLISECONDS_BY_EVENT = 700;
+// Exemplo: 300 significa que espera 0,3 segundos entre repetições.
+const TIMEOUT_IN_MILLISECONDS_BY_EVENT = 300;
 
-
+// Habilia algumas logs para debugar o script.
+// Utilizável apenas por desenvolvedores.
+// Recomendado deixar DESATIVADO.
+const MODO_DEBUG = false;
 
 
 
@@ -129,6 +139,9 @@ const stickerMetadata = {
 };
 const onlyChatsCommands = COMANDOS_SOMENTE_NOS_CHATS;
 const timeoutByEvent = TIMEOUT_IN_MILLISECONDS_BY_EVENT;
+const markOnlineOnConnect = !RECEBER_NOTIFICACOES_QUANDO_CONECTADO;
+const debug = MODO_DEBUG;
+const shouldLogCommands = REGISTRAR_COMANDOS;
 const databaseDir = path.resolve(__dirname, "..", "database");
 const tempDir = path.resolve(__dirname, "..", "assets", "temp");
 const commandsDir = path.resolve(__dirname, "commands");
@@ -162,9 +175,12 @@ module.exports = {
   allowCommands,
   stickerMetadata,
   onlyChatsCommands,
+  shouldLogCommands,
+  markOnlineOnConnect,
   timeoutByEvent,
   databaseDir,
   tempDir,
   commandsDir,
   savedFilesDir,
+  debug,
 };

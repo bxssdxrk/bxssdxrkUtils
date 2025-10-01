@@ -18,7 +18,7 @@ module.exports = {
   }) => {
     try {
       await sendWaitReact();
-      let toGetPP = toUserJid(args[0]) || replyJid || remoteJid;
+      let toGetPP = args[0] ? toUserJid(args[0]) : replyJid ? replyJid : remoteJid;
       if (!toGetPP) return await sendWarningReply("Especifique um usuário.");
       const ppURL = await socket.profilePictureUrl(toGetPP, 'image');
       
@@ -35,7 +35,7 @@ module.exports = {
       if (errorCode === 408) {
         return await sendErrorReply(`Não foi possível baixar a imagem de perfil do usuário pois o WhatsApp demorou demais para responder.`);
       }
-      return sendErrorReply(`Erro desconhecido:\n${error}`);
+      return sendErrorReply(`Erro desconhecido:\n${error.message}`);
     }
   }
 };

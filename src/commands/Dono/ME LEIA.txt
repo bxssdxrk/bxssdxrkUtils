@@ -1,0 +1,7 @@
+📂 Dono
+
+Coloque aqui os comandos que apenas os **criadores dos grupos** (e você) poderão usar.  
+
+⚠️ Atenção:  
+Mesmo que você tenha permissão para usar comandos de dono, isso **não concede privilégios de criador de grupo**.  
+As restrições e permissões impostas pelo próprio WhatsApp continuam valendo normalmente.

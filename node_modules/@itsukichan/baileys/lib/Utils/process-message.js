@@ -109,7 +109,7 @@ function decryptPollVote({ encPayload, encIv }, { pollCreatorJid, pollMsgId, pol
     }
 }
 
-const processMessage = async (message, { shouldProcessHistoryMsg, placeholderResendCache, ev, creds, keyStore, logger, options, getMessage }) => {
+const processMessage = async (message, { shouldProcessHistoryMsg, placeholderResendCache, ev, creds, signalRepository, keyStore, logger, options, getMessage }) => {
     const meId = creds.me.id
     const { accountSettings } = creds
     const chat = { id: WABinary_1.jidNormalizedUser(getChatId(message.key)) }
@@ -175,7 +175,7 @@ const processMessage = async (message, { shouldProcessHistoryMsg, placeholderRes
                             newAppStateSyncKeyId = strKeyId
                         }
                         logger?.info({ newAppStateSyncKeyId, newKeys }, 'injecting new app state sync keys')
-                    })
+                    }, meId)
                     ev.emit('creds.update', { myAppStateKeyId: newAppStateSyncKeyId })
                 }
                 else {
@@ -239,6 +239,18 @@ const processMessage = async (message, { shouldProcessHistoryMsg, placeholderRes
                         }
                     }
                 ])
+                break
+            case WAProto_1.proto.Message.ProtocolMessage.Type.LID_MIGRATION_MAPPING_SYNC:
+                const lidMappingStore = signalRepository.getLIDMappingStore()
+                const encodedPayload = protocolMsg.lidMigrationMappingSyncMessage?.encodedMappingPayload
+                const { pnToLidMappings, chatDbMigrationTimestamp } = WAProto_1.proto.LIDMigrationMappingSyncPayload.decode(encodedPayload)
+                logger?.debug({ pnToLidMappings, chatDbMigrationTimestamp }, 'got lid mappings and chat db migration timestamp')
+                const pairs = []
+                for (const { pn, latestLid, assignedLid } of pnToLidMappings) {
+                    const lid = latestLid || assignedLid
+                    pairs.push({ lid: `${lid}@lid`, pn: `${pn}@s.whatsapp.net` })
+                }
+                await lidMappingStore.storeLIDPNMappings(pairs)
                 break
             case WAProto_1.proto.Message.ProtocolMessage.Type.LIMIT_SHARING:
                 ev.emit('limit-sharing.update', {

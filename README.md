@@ -40,30 +40,28 @@ Para instalar esse projeto, basta seguir os passos abaixo:
     cd bxssdxrkUtils
     ```
 
-6. Instalar dependências do projeto
-
-    Essas flags são opcionais, se der problema ao instalar, remova elas.
-
-    ```bash
-    npm install --no-bin-links --ignore-scripts
-    ```
-
-7. Configurar o arquivo de configuração
+6. Configurar o arquivo de configuração
 
     Abra o arquivo de configuração:
     ```bash
     npm run config
     ```
-    Escolha seu app de edição de texto preferido. Configure como quiser e não esqueça de salvar.
+    - Escolha seu app de edição de texto preferido.
+    - Configure como quiser e não esqueça de salvar.
+    - Depois de salvar, digite "pronto" no console.
+    - Você pode configurar quantas vezes quiser!
     
 
-8. Iniciar o script
+7. Iniciar o script
 
     ```bash
     npm start
     ```
   
-9. Coloque seu número (EXEMPLO: 555188889999), copie o código de pareamento e conecte no WhatsApp (deve chegar uma notificação do WhatsApp. clique nela e cole o código de pareamento)
+8. Conectar o bxssdxrkUtils ao seu numero
+
+    - Coloque seu número (EXEMPLO: 555188889999),
+    - Copie o código de pareamento e conecte no WhatsApp (deve chegar uma notificação do WhatsApp. clique nela e cole o código de pareamento)
 
 ## E pra que serve essa bosta?
 

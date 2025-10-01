@@ -1,0 +1,7 @@
+📂 Admins
+
+Coloque aqui os comandos que apenas os **admins dos grupos** (e você) poderão usar.  
+
+⚠️ Atenção:  
+Mesmo que você tenha permissão para usar comandos de admins, isso **não concede privilégios de admin de grupo**.  
+As restrições e permissões impostas pelo próprio WhatsApp continuam valendo normalmente.

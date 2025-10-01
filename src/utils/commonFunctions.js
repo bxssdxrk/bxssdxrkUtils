@@ -1,7 +1,6 @@
 const { getContentType, getDevice, downloadContentFromMessage } = require("@itsukichan/baileys");
 const axios = require("axios");
-const { bxssdxrkLog } = require(".");
-const { onlyNumbers, toUserJid, extractDataFromMessage } = require(".");
+const { onlyNumbers, toUserJid, isGroupJid, isUserJid, bxssdxrkLog, extractDataFromMessage } = require(".");
 const { commandPrefixes, tempDir } = require(`${BASE_DIR}/config`);
 const fs = require("fs");
 const path = require('path');
@@ -16,7 +15,8 @@ exports.createHelpers = ({ socket, webMessage }) => {
     args, 
     fullArgs,
     fullMessage,
-    userJid, 
+    userJid,
+    fromMe,
     isReply, 
     replyJid 
   } = extractDataFromMessage(webMessage, commandPrefixes);
@@ -103,8 +103,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
           "Referer": url,
         },
       });
-  
-      // 1. Verifica o cabeçalho Content-Disposition
+
       let extension = "bin";
       const contentDisposition = response.headers["content-disposition"];
       
@@ -116,8 +115,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
           if (extMatch) extension = extMatch[1].toLowerCase();
         }
       }
-  
-      // 2. Se não encontrou, tenta extrair da URL
+
       if (extension === "bin") {
         try {
           const urlObj = new URL(url);
@@ -125,11 +123,9 @@ exports.createHelpers = ({ socket, webMessage }) => {
           const extMatch = pathname.match(/\.([0-9a-z]+)$/i);
           if (extMatch) extension = extMatch[1].toLowerCase();
         } catch (e) {
-          // URL inválida, mantém 'bin'
         }
       }
-  
-      // 3. Usa o content-type com a biblioteca mime-types
+
       if (extension === "bin") {
         const contentType = response.headers["content-type"] || "";
         const mimeType = contentType.split(";")[0].trim();
@@ -218,7 +214,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     return await socket.sendMessage(remoteJid, {
       text,
       ...optionalParams
-    }, { quoted: webMessage });
+    }, { ai: true, quoted: webMessage });
   };
 
   const sendReact = async (emoji) => {
@@ -364,6 +360,10 @@ exports.createHelpers = ({ socket, webMessage }) => {
   const sendDocumentFromBufferWithButtons = async (buffer, optionalParams = {}) => {
     const msg = {
       document: buffer,
+      mimetype: optionalParams.fileName
+        ? mime.lookup(optionalParams.fileName) || "application/octet-stream"
+        : "application/octet-stream",
+      fileName: optionalParams.fileName || `${Date.now()}.bin`,
       ...optionalParams,
       ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
       headerType: 1
@@ -547,17 +547,19 @@ exports.createHelpers = ({ socket, webMessage }) => {
   const sendDocumentFromBuffer = async (buffer, optionalParams = {}) => {
     return await socket.sendMessage(remoteJid, {
       document: buffer,
-      mimetype: mime.lookup(url) || "application/octet-stream",
-      fileName: optionalParams.fileName || Date.now(),
+      mimetype: optionalParams.fileName
+        ? mime.lookup(optionalParams.fileName) || "application/octet-stream"
+        : "application/octet-stream",
+      fileName: optionalParams.fileName || `${Date.now()}.bin`,
       ...optionalParams
     }, { quoted: webMessage });
   };
   
   const sendAlbumMessage = async (albumItems, optionalParams = {}) => {
-    return await socket.sendAlbumMessage(remoteJid, 
-      albumItems,
-      { ...optionalParams },
-      { quoted: webMessage });
+    return await socket.sendMessage(remoteJid, {
+      album: albumItems,
+      ...optionalParams,
+    }, { quoted: webMessage })
   };
 
   return {
@@ -568,6 +570,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     fullArgs,
     fullMessage,
     userJid, 
+    fromMe,
     isReply, 
     replyJid,
     webMessage,
@@ -630,5 +633,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     bxssdxrkLog,
     onlyNumbers,
     toUserJid,
+    isGroupJid,
+    isUserJid,
   };
 };

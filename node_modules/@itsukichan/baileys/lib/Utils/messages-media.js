@@ -73,6 +73,55 @@ const hkdfInfoKey = (type) => {
     return `WhatsApp ${hkdfInfo} Keys`
 }
 
+const getRawMediaUploadData = async (media, mediaType, logger) => {
+    const { stream } = await getStream(media)
+    
+    logger?.debug('got stream for raw upload')
+    
+    const hasher = Crypto.createHash('sha256')
+    const filePath = path_1.join(os_1.tmpdir(), mediaType + generics_1.generateMessageID())
+    const fileWriteStream = fs_1.createWriteStream(filePath)
+    
+    let fileLength = 0
+    
+    try {
+        for await (const data of stream) {
+            fileLength += data.length
+            hasher.update(data)
+            
+            if (!fileWriteStream.write(data)) {
+                await events_1.once(fileWriteStream, 'drain')
+            }
+        }
+        
+        fileWriteStream.end()
+        await events_1.once(fileWriteStream, 'finish')
+        stream.destroy()
+        
+        const fileSha256 = hasher.digest()
+        
+        logger?.debug('hashed data for raw upload')
+        
+        return {
+            filePath: filePath,
+            fileSha256,
+            fileLength
+        }
+    }
+    catch (error) {
+        fileWriteStream.destroy()
+        stream.destroy()
+        
+        try {
+            await fs_1.promises.unlink(filePath)
+        }
+        catch {
+            //
+        }
+        throw error
+    }
+}
+
 /** generates all the keys required to encrypt/decrypt & sign a media message */
 async function getMediaKeys(buffer, mediaType) {
     if (!buffer) {
@@ -301,12 +350,22 @@ const getStream = async (item, opts) => {
     if (Buffer.isBuffer(item)) {
         return { stream: toReadable(item), type: 'buffer' }
     }
+    
     if ('stream' in item) {
         return { stream: item.stream, type: 'readable' }
     }
-    if (item.url.toString().startsWith('http://') || item.url.toString().startsWith('https://')) {
+    
+    const urlStr = item.url.toString() 
+    
+    if (urlStr.startsWith('data:')) {
+        const buffer = Buffer.from(urlStr.split(',')[1], 'base64') 
+        return { stream: await toReadable(buffer), type: 'buffer' }
+    }
+    
+    if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) {
         return { stream: await getHttpStream(item.url, opts), type: 'remote' }
     }
+    
     return { stream: fs_1.createReadStream(item.url), type: 'file' }
 }
 
@@ -662,7 +721,10 @@ const getWAUploadToServer = ({ customUploadHosts, fetchAgent, logger, options },
                 if (result?.url || result?.directPath) {
                     urls = {
                         mediaUrl: result.url,
-                        directPath: result.direct_path
+                        directPath: result.direct_path, 
+                        meta_hmac: result.meta_hmac,
+                        fbid: result.fbid,
+                        ts: result.ts
                     }
                     break
                 }
@@ -796,6 +858,7 @@ module.exports = {
   downloadContentFromMessage, 
   downloadEncryptedContent, 
   extensionForMediaMessage, 
+  getRawMediaUploadData, 
   getWAUploadToServer, 
   getMediaRetryKey, 
   encryptMediaRetryRequest, 

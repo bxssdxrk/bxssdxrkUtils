@@ -12,6 +12,7 @@ module.exports = {
   usage: `${prefix}marcar`,
   handle: async ({
     remoteJid,
+    sendErrorReply,
     socket,
     webMessage,
     args,
@@ -20,6 +21,7 @@ module.exports = {
     isImage,
     isVideo,
     isAudio,
+    isGroupJid,
     isSticker,
     isViewOnce,
     downloadMedia,
@@ -28,6 +30,9 @@ module.exports = {
   }) => {
     await sendWaitReact();
     
+    if (!isGroupJid(remoteJid)) {
+      return await sendErrorReply("Este comando só funciona em grupos.");
+    }
     const groupMetadata = await hasGroupMetadata(remoteJid) 
       ? await getGroupMetadata(remoteJid) 
       : await socket.groupMetadata(remoteJid);

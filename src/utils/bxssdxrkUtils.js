@@ -47,6 +47,7 @@
 const fs = require("fs");
 const fsp = fs.promises;
 const path = require("path");
+const ffmpeg = require("fluent-ffmpeg");
 const { downloadContentFromMessage } = require("@itsukichan/baileys");
 const { writeFile } = require("fs/promises");
 const { 
@@ -62,6 +63,7 @@ const {
   rejectPrivateCall,
   rejectSpecificPrivateCalls,
   timeoutByEvent,
+  debug,
 } = require(`${BASE_DIR}/config`);
 const { 
   groupCache,
@@ -109,6 +111,72 @@ const saveInStore = (webMessage) => {
   store.saveStatus(remoteJid, webMessage);
 };
 
+async function splitVideo(input, secondsPerSegment) {
+  let inputPath;
+  try {
+    if (Buffer.isBuffer(input)) {
+      inputPath = path.join(savedFilesDir, `tmp-${getTimestamp()}.mp4`);
+      await fsp.writeFile(inputPath, input);
+    } else if (typeof input === "string") {
+      inputPath = input;
+    } else {
+      throw new Error("Input deve ser um path ou Buffer.");
+    }
+    if (debug) bxssdxrkLog(`Obtendo duração do vídeo...`, "splitVideo", "DEBUG");
+    const duration = await new Promise((resolve, reject) => {
+      ffmpeg.ffprobe(inputPath, (err, metadata) => {
+        if (err) reject(err);
+        else resolve(metadata.format.duration);
+      });
+    });
+    if (debug) bxssdxrkLog(`Duração obtida: ${duration}`, "splitVideo", "DEBUG");
+
+    const splitDir = path.join(savedFilesDir, "videoSplit", `split-${getTimestamp()}`);
+    await fsp.mkdir(splitDir, { recursive: true });
+
+    const totalSegments = Math.ceil(duration / secondsPerSegment);
+
+    bxssdxrkLog(`Pra dividir em partes de ${secondsPerSegment} segundos, vai precisar de ${totalSegments} segmentos. Começando agora...`, "splitVideo", "info");
+
+    for (let i = 0; i < totalSegments; i++) {
+      const startTime = i * secondsPerSegment;
+      const endTime = Math.min((i + 1) * secondsPerSegment, duration);
+      const outputFile = path.join(splitDir, `part-${String(i + 1).padStart(3, '0')}.mp4`);
+
+      if (debug) bxssdxrkLog(`Processando segmento ${i + 1}/${totalSegments}...`, "splitVideo", "info");
+
+      await new Promise((resolve, reject) => {
+        ffmpeg(inputPath)
+          .seekInput(startTime)
+          .duration(endTime - startTime)
+          .outputOptions([
+            "-c:v libx264",
+            "-c:a aac",
+            "-avoid_negative_ts make_zero",
+            "-fflags +genpts"
+          ])
+          .output(outputFile)
+          .on("end", () => {
+            resolve();
+          })
+          .on("error", reject)
+          .run();
+      });
+    }
+
+    if (Buffer.isBuffer(input)) {
+      await fsp.unlink(inputPath);
+    }
+
+    bxssdxrkLog(`Vídeo dividido com sucesso em ${totalSegments} segmentos em ${splitDir}`, "splitVideo", "success");
+    return splitDir;
+
+  } catch (err) {
+    bxssdxrkLog(`Erro ao dividir vídeo: ${err.message}`, "splitVideo", "error");
+    throw err;
+  }
+}
+
 async function saveMedia(mediaMsg, senderJid, subfolder, type, socket, webMessage) {
   try {
     const bxssdxrk = createHelpers({ socket, webMessage });
@@ -152,7 +220,7 @@ async function saveMedia(mediaMsg, senderJid, subfolder, type, socket, webMessag
     const relativePath = path.relative("/storage/emulated/0/Download", destinationPath);
 
     bxssdxrkLog(`Salvo com sucesso!`, type, "success");
-    bxssdxrkLog(`Download/${relativePath}`, type, "success");
+    if (debug) bxssdxrkLog(`Download/${relativePath}`, type, "success");
   } catch (err) {
     console.log(err);
     bxssdxrkLog(`Erro ao salvar ${subfolder}: ${err.message}`, type, "error");
@@ -216,34 +284,34 @@ const saveStatus = async (webMessage, socket) => {
   }
   
   try {
-  if (isReaction && saveStatusByLike) {
-    const reactionMessage = msg.reactionMessage;
-    const targetJid = reactionMessage?.key?.participant;
-    const statusID = reactionMessage?.key?.id;
-    
-    try {
-      const originalStatus = await store.getStatus(targetJid, statusID);
-      if (!originalStatus) {
-        bxssdxrkLog("O status não está disponível no store.", "status", "error");
-        bxssdxrkLog("Talvez tenha recebido enquanto o script", "status", "error");
-        bxssdxrkLog("estava desligado no seu dispositivo.", "status", "error");
-        return;
+    if (isReaction && saveStatusByLike) {
+      const reactionMessage = msg.reactionMessage;
+      const targetJid = reactionMessage?.key?.participant;
+      const statusID = reactionMessage?.key?.id;
+      
+      try {
+        const originalStatus = await store.getStatus(targetJid, statusID);
+        if (!originalStatus) {
+          bxssdxrkLog("O status não está disponível no store.", "status", "error");
+          bxssdxrkLog("Talvez tenha recebido enquanto o script", "status", "error");
+          bxssdxrkLog("estava desligado no seu dispositivo.", "status", "error");
+          return;
+        }
+        
+        if (!originalStatus?.message) return;
+        
+        const originalMsg = originalStatus.message;
+        const mediaType = Object.keys(originalMsg).find(k => originalMsg[k]?.mimetype);
+        
+        if (!mediaType) return;
+        
+        const mediaMsg = { [mediaType]: originalMsg[mediaType] };
+        
+        await saveMedia(mediaMsg, targetJid, "Status", "status", socket, webMessage);
+      } catch (err) {
+        bxssdxrkLog(`Erro ao salvar status curtido: ${err.message}`, "saveStatus", "error");
       }
-      
-      if (!originalStatus?.message) return;
-      
-      const originalMsg = originalStatus.message;
-      const mediaType = Object.keys(originalMsg).find(k => originalMsg[k]?.mimetype);
-      
-      if (!mediaType) return;
-      
-      const mediaMsg = { [mediaType]: originalMsg[mediaType] };
-      
-      await saveMedia(mediaMsg, targetJid, "Status", "status", socket, webMessage);
-    } catch (err) {
-      bxssdxrkLog(`Erro ao salvar status curtido: ${err.message}`, "saveStatus", "error");
     }
-  }
   } catch (err) {
     bxssdxrkLog(`Erro desconhecido: ${err}`, "saveStatus", "error");
   }
@@ -300,7 +368,6 @@ const antiSpam = async (webMessage, socket) => {
       if (remoteJid.endsWith('@g.us')) {
         await socket.groupSettingUpdate(remoteJid, 'announcement');
         await socket.sendMessage(remoteJid, { delete: webMessage.key });
-        // Mensagem em grupo → Banir participante
         await socket.groupParticipantsUpdate(remoteJid, [participant], 'remove');
         bxssdxrkLog(`Usuário ${participant} banido automaticamente do grupo ${remoteJid} por comportamento suspeito.`, "antiSpam", "success");
         await socket.sendMessage(remoteJid, {
@@ -308,7 +375,6 @@ const antiSpam = async (webMessage, socket) => {
           mentions: [participant]
         });
       } else {
-        // Mensagem no PV → Bloquear e limpar chat
         await socket.updateBlockStatus(remoteJid, 'block');
         await socket.chatModify(
           { clear: { message: { id: webMessage.key.id, fromMe: false } } },
@@ -382,4 +448,5 @@ module.exports = {
   saveStatus,
   rejectCall,
   autoLikeStatus,
+  splitVideo,
 };

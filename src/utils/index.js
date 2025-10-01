@@ -3,7 +3,22 @@ const fs = require("fs");
 const readline = require("readline");
 global.BASE_DIR = path.resolve(__dirname, "..");
 const { version } = require("../../package.json");
-const { commandsDir } = require(`${BASE_DIR}/config`);
+const { commandsDir, tempDir } = require(`${BASE_DIR}/config`);
+
+const clearTempDir = () => {
+  if (!fs.existsSync(tempDir)) {
+    fs.mkdirSync(tempDir, { recursive: true });
+  }
+
+  fs.readdirSync(tempDir).forEach((file) => {
+    const filePath = path.join(tempDir, file);
+    if (fs.lstatSync(filePath).isDirectory()) {
+      fs.rmSync(filePath, { recursive: true, force: true });
+    } else {
+      fs.unlinkSync(filePath);
+    }
+  });
+};
 
 const question = (message) => {
   const rl = readline.createInterface({
@@ -24,6 +39,21 @@ const onlyNumbers = (text) => {
 
 const toUserJid = (number) => {
   return number ? `${onlyNumbers(number)}@s.whatsapp.net` : null;
+};
+
+const isGroupJid = (jid) => {
+  if (!jid) return false;
+  return jid.endsWith('@g.us') || false;
+};
+
+const isUserJid = (jid) => {
+  if (!jid) return false;
+  return jid.endsWith('@s.whatsapp.net') || false;
+};
+
+const isUserLid = (lid) => {
+  if (!lid) return false;
+  return lid.endsWith('@lid') || false;
 };
 
 const onlyLettersAndNumbers = (text) => {
@@ -51,6 +81,32 @@ const formatCommand = (text) => {
   return onlyLettersAndNumbers(
     removeAccentsAndSpecialCharacters(text.toLowerCase().trim())
   );
+};
+
+const drawBox = (texts, title) => {
+  let width;
+  if (title && title.length > Math.max(...texts.map(text => text.length))) {
+    width = title.length + 2;
+  } else {
+    width = Math.max(...texts.map(text => text.length)) + 2;
+  }
+
+  const box = [];
+  box.push(`╭${'─'.repeat(width)}╮`);
+  if (title) {
+    box.push(`│ ${title.padEnd(width - 1)}│`);
+    box.push(`├${'─'.repeat(width)}┤`);
+  }
+
+  for (const text of texts) {
+    box.push(`│ ${text.padEnd(width - 1)}│`);
+  }
+
+  box.push(`╰${'─'.repeat(width)}╯`);
+  return {
+    box,
+    text: box.join("\n") + "\n"
+  };
 };
 
 const randomColor = () => ({
@@ -110,7 +166,6 @@ const deepGet = (obj, paths) => {
       const value = path.split('.').reduce((acc, part) => acc[part], obj);
       if (value !== undefined && value !== null) return value;
     } catch {
-      // Ignora erros e continua tentando outros caminhos
     }
   }
   return null;
@@ -170,7 +225,9 @@ const extractDataFromMessage = (webMessage, commandPrefixes = ['.', '!', '/']) =
   const replyJid = replyJidPaths.reduce((jid, path) => 
     jid || deepGet(webMessage, [path]), null
   );
-
+  
+  const fromMe = webMessage?.key?.fromMe;
+  
   const userJid = webMessage?.key?.participant?.replace(/:[0-9][0-9]?/g, "");
 
   if (!fullMessage) {
@@ -210,6 +267,7 @@ const extractDataFromMessage = (webMessage, commandPrefixes = ['.', '!', '/']) =
     remoteJid: webMessage?.key?.remoteJid || null,
     prefix,
     userJid,
+    fromMe,
     replyJid,
     isReply,
     commandName: formatCommand(commandWithoutPrefix),
@@ -314,7 +372,7 @@ const checkForUpdates = async () => {
         "warn"
       );
       bxssdxrkLog(
-        `Atualize com "bash update.sh" ou baixe manualmente a versão mais recente.`,
+        `Atualize com "npm run update" ou baixe manualmente a versão mais recente.`,
         "sistema",
         "warn"
       );
@@ -325,9 +383,14 @@ const checkForUpdates = async () => {
 };
 
 module.exports = {
+  clearTempDir,
   question,
+  drawBox,
   onlyNumbers,
   toUserJid,
+  isGroupJid,
+  isUserJid,
+  isUserLid,
   onlyLettersAndNumbers,
   removeAccentsAndSpecialCharacters,
   splitByCharacters,

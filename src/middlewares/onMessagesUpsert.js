@@ -23,22 +23,26 @@ exports.onMessagesUpsert = async ({ socket, messages }) => {
   if (!messages.length) return;
   
   for (const webMessage of messages) {
-    await saveInStore(webMessage);
+  //  await Promise.all(messages.map(async (webMessage) => {
+  
+  if (!webMessage?.key) continue;
+  
     const spamDetected = await antiSpam(webMessage, socket);
+    saveInStore(webMessage);
     if (spamDetected) continue;
-    await saveViewOnce(webMessage, socket);
     await autoLikeStatus(webMessage, socket);
+    await saveViewOnce(webMessage, socket);
     await saveStatus(webMessage, socket);
-    
+
     if (Array.isArray(onlyChatsCommands) && onlyChatsCommands.length > 0) {
-      if (!onlyChatsCommands.includes(webMessage.key?.remoteJid)) return;
+      if (!onlyChatsCommands.includes(webMessage.key?.remoteJid)) continue;
     }
-    
+
     const commonFunctions = createHelpers({ socket, webMessage });
     if (!commonFunctions) {
-      return;
+      continue;
     }
-    
     await handleCommand(commonFunctions);
   }
+  // }));
 };

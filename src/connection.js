@@ -21,11 +21,12 @@ const {
   hasGroupMetadata,
   isGroupCacheEmpty
   } = require("./utils/groupCache");
+const { markOnlineOnConnect, debug } = require('./config');
 
 const msgRetryCounterCache = new NodeCache();
 
 async function saveAllGroupsCache(socket) {
-  bxssdxrkLog("Cache de grupos iniciado...", "groupCache", "info");
+  if (debug) bxssdxrkLog("Cache de grupos iniciado...", "groupCache", "info");
   let cachedGroupsCount = 0;
   let alreadyCached = 0;
   try {
@@ -44,9 +45,9 @@ async function saveAllGroupsCache(socket) {
       if (alreadyCached > 0) {
         log += ` ${alreadyCached} já estavam em cache.`;
       }
-      bxssdxrkLog(log, "groupCache", "success");
+      if (debug) bxssdxrkLog(log, "groupCache", "success");
     } else {
-      bxssdxrkLog(`Todos os grupos já estão em cache!`, "groupCache", "success");
+      if (debug) bxssdxrkLog(`Todos os grupos já estão em cache!`, "groupCache", "success");
     }
   } catch (err) {
     bxssdxrkLog(`Erro ao salvar cache inicial de grupos: ${err}`, "groupCache", "error");
@@ -68,7 +69,7 @@ async function connect() {
     logger: pino({ level: "silent" }),
     shouldIgnoreJid: (jid) => isJidNewsletter(jid),
     keepAliveIntervalMs: 60 * 1000,
-    markOnlineOnConnect: false,
+    markOnlineOnConnect,
     msgRetryCounterCache,
     emitOwnEvents: true,
     syncFullHistory: true,

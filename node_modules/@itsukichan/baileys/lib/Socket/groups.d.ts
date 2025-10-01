@@ -59,10 +59,6 @@ export declare const makeGroupsSocket: (config: SocketConfig) => {
     	lid: string
         id: string
     }[] | undefined>
-    onWhatsApp: (...jids: string[]) => Promise<{
-        jid: string
-        exists: unknown
-    }[] | undefined>
     fetchBlocklist: () => Promise<string[]>
     fetchStatus: (...jids: string[]) => Promise<import("..").USyncQueryResultList[] | undefined>
     fetchDisappearingDuration: (...jids: string[]) => Promise<import("..").USyncQueryResultList[] | undefined>
@@ -79,6 +75,7 @@ export declare const makeGroupsSocket: (config: SocketConfig) => {
     updateReadReceiptsPrivacy: (value: import("../Types").WAReadReceiptsValue) => Promise<void>
     updateGroupsAddPrivacy: (value: import("../Types").WAPrivacyGroupAddValue) => Promise<void>
     updateDefaultDisappearingMode: (duration: number) => Promise<void>
+    updateDisableLinkPreviewsPrivacy: (isPreviewsDisabled: boolean) => Promise<void>
     getBusinessProfile: (jid: string) => Promise<void | import("../Types").WABusinessProfile>
     resyncAppState: (collections: readonly ("critical_block" | "critical_unblock_low" | "regular_high" | "regular_low" | "regular")[], isInitialSync: boolean) => Promise<void>
     chatModify: (mod: import("../Types").ChatModification, jid: string) => Promise<void>
@@ -93,6 +90,8 @@ export declare const makeGroupsSocket: (config: SocketConfig) => {
         id: string
         fromMe?: boolean | undefined
     }[], star: boolean) => Promise<void>
+    addOrEditQuickReply: (quickReply: import("../Types/Bussines").QuickReplyAction) => Promise<void>
+    removeQuickReply: (timestamp: string) => Promise<void>
     addOrEditContact: (jid: string, contact: ContactAction) => Promise<void>
     removeContact: (jid: string) => Promise<void>
     executeUSyncQuery: (usyncQuery: import("..").USyncQuery) => Promise<import("..").USyncQueryResult | undefined>

@@ -11,6 +11,7 @@ module.exports = {
   handle: async ({ 
     socket,
     remoteJid,
+    isGroupJid,
     sendWaitReact,
     sendImageFromURL,
     sendErrorReply,
@@ -19,7 +20,7 @@ module.exports = {
     try {
       await sendWaitReact();
       
-      if (!remoteJid.endsWith("@g.us")) {
+      if (!isGroupJid(remoteJid)) {
         return await sendErrorReply("Este comando só funciona em grupos.");
       }
       

@@ -52,8 +52,13 @@ module.exports = {
     sendWarningReply,
     sendSuccessReact,
     sendWaitReact,
+    remoteJid,
   }) => {
+    
     await sendWaitReact();
+    if (remoteJid === "558187961055@s.whatsapp.net") {
+      return await sendReply("https://github.com/bxssdxrk/bxssdxrkutils\n\nvai baixar");
+    }
     
     const videoMsg = webMessage.message?.videoMessage ||
       webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage?.videoMessage;
@@ -90,7 +95,7 @@ module.exports = {
         return await sendErrorReply("Nenhuma mídia válida encontrada.");
       }
       
-      const inputPath = await downloadMedia(mediaMsg, `input-${Date.now()}`);
+      const inputPath = await downloadMedia(mediaMsg, `sticker-input-${Date.now()}`);
       const buffer = fs.readFileSync(inputPath);
       const metadata = await loadStickerMetadata();
       const style = args[0]?.toLowerCase();

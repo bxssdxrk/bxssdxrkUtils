@@ -16,9 +16,10 @@ module.exports = {
     try {
       bxssdxrkLog("Teste concluido!", "teste", "success");
       await sendSuccessReply("Teste concluido!");
-    } catch {
+    } catch (error) {
       bxssdxrkLog("Teste falhou!", "teste", "error");
-      await sendErrorReply("Erro no teste!");
+      bxssdxrkLog(error, "teste", "error");
+      await sendErrorReply("Erro no teste! Veja o console.");
     }
   }
 };
