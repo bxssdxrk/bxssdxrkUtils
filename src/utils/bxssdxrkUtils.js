@@ -1,55 +1,8 @@
-/*
- * bxssdxrkUtils
- * =============================
- * Coleção de funções utilitárias feitas com muito ó̶d̶i̶o̶ amor por bxssdxrk. :3
- * Voltadas para uso pessoal em projetos com a biblioteca Baileys.
- *
- * 🧠 PROPÓSITO:
- * Este código foi criado com o objetivo de aprendizado e prática pessoal.
- * A intenção principal é educativa — estudar programação, explorar a API do Baileys,
- * testar ideias e compartilhar conhecimento de forma aberta e livre.
- *
- * ⚠️ AVISO LEGAL:
- * Este código é fornecido gratuitamente, sem qualquer garantia.
- * São ferramentas experimentais, feitas por iniciativa própria,
- * sem nenhum tipo de vínculo, afiliação ou apoio da Meta Platforms Inc.,
- * WhatsApp ou dos desenvolvedores da biblioteca Baileys.
- *
- * ❗ O uso deste código é de inteira responsabilidade do usuário.
- * Não me responsabilizo por qualquer consequência gerada por seu uso
- * (banimentos, perdas, danos, etc.).
- *
- * ✅ LIBERADO GERAL:
- * Pode copiar, modificar, adaptar e compartilhar à vontade.
- * O único requisito é: **NÃO VENDA!**
- * Este código foi feito para ser totalmente gratuito e deve continuar assim.
- * Se alguém usar essas funções pra vender ou ganhar dinheiro, está
- * automaticamente desrespeitando a proposta e será considerado um tremendo bobão.
- *
- * 🤍 SE FOR USAR:
- * Se você der os créditos pra mim, bxssdxrk, eu vou ficar muito felizinho :3
- * E se modificar ou adaptar algo, me diga ou me mostre o que fez!
- * Vou adorar ver até onde essas ideias podem chegar nas mãos de outras pessoas.
- *
- * 🚨 IMPORTANTE:
- * Se você pagou por isso, sinto muito... você foi enganado.
- * Essa coleção de funções é e sempre será gratuita. Denuncie quem comercializa
- * algo que nunca teve preço. Não alimente esse tipo de comportamento.
- *
- * 🛠️ Use com consciência e ética.
- *
- * Autor: bxssdxrk
- * GitHub: https://github.com/bxssdxrk
- * Data de criação: 21/07/2025
- * 
- */
-
 const fs = require("fs");
 const fsp = fs.promises;
 const path = require("path");
+const axios = require("axios");
 const ffmpeg = require("fluent-ffmpeg");
-const { downloadContentFromMessage } = require("@itsukichan/baileys");
-const { writeFile } = require("fs/promises");
 const { 
   savedFilesDir,
   enableAntiSpam,
@@ -62,56 +15,124 @@ const {
   rejectVoiceCall,
   rejectPrivateCall,
   rejectSpecificPrivateCalls,
-  timeoutByEvent,
   ownNumber,
   debug,
 } = require(`${BASE_DIR}/config`);
-const { 
-  groupCache,
-  setGroupMetadata,
-  getGroupMetadata,
-  hasGroupMetadata,
-  delGroupMetadata,
-  flushGroupCache,
-  isGroupCacheEmpty
-} = require("./groupCache");
 const { createHelpers } = require("./commonFunctions");
-const { bxssdxrkLog, onlyNumbers, toUserJid } = require(".");
-
+const { bxssdxrkLog, onlyNumbers, toUserJid, isJid, isLid } = require(".");
 const createStore = require("./store");
+
+// ============================================================================
+// STORE & CACHE
+// ============================================================================
 const store = createStore();
 
-let autoLiked = false;
-let eventsRegistered = false;
-  
-function ensureDir(dirPath) {
-  if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
-}
+// ============================================================================
+// CONSTANTES E CONFIGURAÇÕES
+// ============================================================================
+const MEDIA_TYPES = [
+  'imageMessage', 
+  'videoMessage', 
+  'audioMessage', 
+  'stickerMessage',
+  'documentMessage'
+];
 
-function sanitizeJid(jid) {
-  if (jid.endsWith("@g.us")) return jid;
-  const number = onlyNumbers(jid);
-  return number;
-}
+const SPAM_TRIGGERS = [".bugde_gp", ".bug_degp", "!bug_degp", "!bugde_gp", "🤹🏻‍♂️"];
 
-function getTimestamp() {
-  const now = new Date();
-  const dia = String(now.getDate()).padStart(2, "0");
-  const mes = String(now.getMonth() + 1).padStart(2, "0");
-  const ano = String(now.getFullYear());
-  const hora = String(now.getHours()).padStart(2, "0");
-  const min = String(now.getMinutes()).padStart(2, "0");
-  const seg = String(now.getSeconds()).padStart(2, "0");
-
-  return `${dia}-${mes}-${ano}_${hora}-${min}-${seg}`;
-}
-
-const saveInStore = (webMessage) => {
-  const remoteJid = webMessage.key?.remoteJid;
-  store.saveMessage(remoteJid, webMessage);
-  store.saveStatus(remoteJid, webMessage);
+const MEDIA_EXTENSIONS = {
+  imageMessage: "jpg",
+  videoMessage: "mp4",
+  audioMessage: "mp3",
+  stickerMessage: "webp",
+  documentMessage: "bin"
 };
 
+const SUBFOLDER_ALIASES = {
+  "Visualização Única": "viewOnce",
+  "Status": "status"
+};
+
+/**
+ * Converte JID para LID usando socket
+ */
+async function toUserLid(socket, jid) {
+  if (!jid || !socket) return null;
+  
+  try {
+    return (await socket.getLidUser(jid))[0].lid;
+  } catch (err) {
+    if (debug) {
+      bxssdxrkLog(`Erro ao converter JID para LID: ${err.message}`, "toUserLid", "error");
+    }
+    return null;
+  }
+}
+
+async function getBestIdentifier(socket, participantAlt, participant) {
+  // Prioridade 1: participantAlt se for LID
+  if (isLid(participantAlt)) {
+    return participantAlt;
+  }
+  
+  // Prioridade 2: participant se for LID
+  if (isLid(participant)) {
+    return participant;
+  }
+  
+  // Prioridade 3: Converter participantAlt (JID) para LID
+  if (isJid(participantAlt)) {
+    const lid = await toUserLid(socket, participantAlt);
+    if (lid) return lid;
+  }
+  
+  // Prioridade 4: Converter participant (JID) para LID
+  if (isJid(participant)) {
+    const lid = await toUserLid(socket, participant);
+    if (lid) return lid;
+  }
+  
+  // Fallback: Retorna o que estiver disponível
+  return participantAlt || participant || null;
+}
+
+/**
+ * Extrai o melhor identificador de um objeto key ou contextInfo
+ */
+async function extractBestId(socket, obj) {
+  if (!obj) return null;
+  
+  const participantAlt = obj.participantAlt;
+  const participant = obj.participant;
+  
+  return await getBestIdentifier(socket, participantAlt, participant);
+}
+
+// ============================================================================
+// UTILITÁRIOS GERAIS
+// ============================================================================
+
+/**
+ * Garante que um diretório existe
+ */
+function ensureDir(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+/**
+ * Sanitiza um JID/LID para obter apenas o número
+ */
+function sanitizeJid(jid) {
+  if (!jid) return "";
+  if (jid.endsWith("@g.us")) return jid;
+  return onlyNumbers(jid);
+}
+
+/**
+ * Divide vídeo em segmentos
+ */
 async function splitVideo(input, secondsPerSegment) {
   let inputPath;
   try {
@@ -123,13 +144,16 @@ async function splitVideo(input, secondsPerSegment) {
     } else {
       throw new Error("Input deve ser um path ou Buffer.");
     }
+    
     if (debug) bxssdxrkLog(`Obtendo duração do vídeo...`, "splitVideo", "DEBUG");
+    
     const duration = await new Promise((resolve, reject) => {
       ffmpeg.ffprobe(inputPath, (err, metadata) => {
         if (err) reject(err);
         else resolve(metadata.format.duration);
       });
     });
+    
     if (debug) bxssdxrkLog(`Duração obtida: ${duration}`, "splitVideo", "DEBUG");
 
     const splitDir = path.join(savedFilesDir, "videoSplit", `split-${getTimestamp()}`);
@@ -157,9 +181,7 @@ async function splitVideo(input, secondsPerSegment) {
             "-fflags +genpts"
           ])
           .output(outputFile)
-          .on("end", () => {
-            resolve();
-          })
+          .on("end", () => resolve())
           .on("error", reject)
           .run();
       });
@@ -178,6 +200,113 @@ async function splitVideo(input, secondsPerSegment) {
   }
 }
 
+/**
+ * Gera um timestamp formatado
+ */
+function getTimestamp() {
+  const now = new Date();
+  const dia = String(now.getDate()).padStart(2, "0");
+  const mes = String(now.getMonth() + 1).padStart(2, "0");
+  const ano = String(now.getFullYear());
+  const hora = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  const seg = String(now.getSeconds()).padStart(2, "0");
+
+  return `${dia}-${mes}-${ano}_${hora}-${min}-${seg}`;
+}
+
+/**
+ * Normaliza o nome da subpasta
+ */
+function normalizeSubfolder(subfolder) {
+  return SUBFOLDER_ALIASES[subfolder] || subfolder;
+}
+
+/**
+ * Determina a extensão do arquivo baseado no tipo de mídia
+ */
+function getFileExtension(mediaMsg, downloadedPath) {
+  const fileExtension = path.extname(downloadedPath) || '';
+  let finalExtension = fileExtension.toLowerCase().replace('.', '');
+
+  if (!finalExtension) {
+    const mediaType = Object.keys(mediaMsg)[0];
+    
+    if (mediaType === 'documentMessage' && mediaMsg.documentMessage.fileName) {
+      finalExtension = mediaMsg.documentMessage.fileName.split(".").pop() || 'bin';
+    } else {
+      finalExtension = MEDIA_EXTENSIONS[mediaType] || "bin";
+    }
+  }
+
+  return finalExtension;
+}
+
+/**
+ * Extrai informações básicas da mensagem web (sem socket)
+ */
+function extractMessageInfo(webMessage) {
+  const key = webMessage?.key;
+  const msg = webMessage?.message;
+  const fromMe = key?.fromMe;
+  const remoteJid = key?.remoteJid || key?.remoteJidAlt;
+  
+  // Não resolve LID aqui - apenas extrai os valores brutos
+  const participantAlt = key?.participantAlt || webMessage?.participantAlt;
+  const participant = key?.participant || webMessage?.participant;
+  
+  return { 
+    key, 
+    msg, 
+    fromMe, 
+    remoteJid, 
+    participantAlt,
+    participant
+  };
+}
+
+/**
+ * Extrai informações completas com melhor identificador (requer socket)
+ */
+async function extractMessageInfoWithLid(webMessage, socket) {
+  const basic = extractMessageInfo(webMessage);
+  const bestId = await getBestIdentifier(socket, basic.participantAlt, basic.participant);
+  
+  return {
+    ...basic,
+    userId: bestId || basic.participant || basic.remoteJid
+  };
+}
+
+/**
+ * Verifica se uma mensagem é um status
+ */
+function isStatusMessage(webMessage) {
+  const { msg, remoteJid } = extractMessageInfo(webMessage);
+  const contextInfo = Object.values(msg || {}).find(v => v?.contextInfo)?.contextInfo;
+  
+  return msg?.broadcast || 
+         remoteJid === "status@broadcast" || 
+         contextInfo?.remoteJid === "status@broadcast";
+}
+
+/**
+ * Extrai o contextInfo de uma mensagem
+ */
+function getContextInfo(msg) {
+  if (!msg) return null;
+  
+  const msgType = Object.keys(msg)[0];
+  return msg[msgType]?.contextInfo || msg?.extendedTextMessage?.contextInfo;
+}
+
+// ============================================================================
+// MANIPULAÇÃO DE MÍDIA
+// ============================================================================
+
+/**
+ * Salva mídia no diretório configurado
+ */
 async function saveMedia(mediaMsg, senderJid, subfolder, type, socket, webMessage) {
   try {
     const bxssdxrk = createHelpers({ socket, webMessage });
@@ -185,215 +314,349 @@ async function saveMedia(mediaMsg, senderJid, subfolder, type, socket, webMessag
     
     if (!downloadedPath) {
       bxssdxrkLog("Não foi possível baixar o arquivo.", type, "error");
-      return;
+      return false;
     }
 
-    if (subfolder === "Visualização Única") subfolder = "viewOnce";
-    if (subfolder === "Status") subfolder = "status";
-    
+    const normalizedSubfolder = normalizeSubfolder(subfolder);
     const baseDir = arrangeByNumber 
-      ? path.join(savedFilesDir, sanitizeJid(senderJid), subfolder)
-      : path.join(savedFilesDir, subfolder);
+      ? path.join(savedFilesDir, sanitizeJid(senderJid), normalizedSubfolder)
+      : path.join(savedFilesDir, normalizedSubfolder);
       
     ensureDir(baseDir);
     
-    const fileExtension = path.extname(downloadedPath) || '';
-    let finalExtension = fileExtension.toLowerCase().replace('.', '');
-
-    if (!finalExtension) {
-      finalExtension = mediaMsg?.imageMessage
-        ? "jpg"
-        : mediaMsg?.videoMessage
-        ? "mp4"
-        : mediaMsg?.audioMessage
-        ? "mp3"
-        : mediaMsg?.documentMessage
-        ? (mediaMsg.documentMessage.fileName?.split(".").pop() || 'bin')
-        : mediaMsg?.stickerMessage
-        ? "webp"
-        : "bin";
-    }
-
+    const finalExtension = getFileExtension(mediaMsg, downloadedPath);
     const fileName = `${getTimestamp()}.${finalExtension}`;
     const destinationPath = path.join(baseDir, fileName);
     
     await fsp.rename(downloadedPath, destinationPath);
-    const relativePath = path.relative("/storage/emulated/0/Download", destinationPath);
-
+    
+    if (debug) {
+      const relativePath = path.relative("/storage/emulated/0/Download", destinationPath);
+      bxssdxrkLog(`Download/${relativePath}`, type, "success");
+    }
+    
     bxssdxrkLog(`Salvo com sucesso!`, type, "success");
-    if (debug) bxssdxrkLog(`Download/${relativePath}`, type, "success");
+    return true;
   } catch (err) {
-    console.log(err);
+    console.error(err);
     bxssdxrkLog(`Erro ao salvar ${subfolder}: ${err.message}`, type, "error");
+    return false;
   }
 }
 
+/**
+ * Encontra mídia em uma mensagem
+ */
+function findMediaInMessage(message) {
+  if (!message) return null;
+  
+  for (const type of MEDIA_TYPES) {
+    const media = message[type];
+    if (media && typeof media === "object" && media?.mimetype) {
+      return { [type]: media };
+    }
+  }
+  
+  return null;
+}
 
+/**
+ * Verifica se uma mídia é view once
+ */
+function isViewOnceMedia(media) {
+  if (!media) return false;
+  return media.viewOnce === true || media.viewOnceV2 === true;
+}
+
+// ============================================================================
+// STORE
+// ============================================================================
+
+/**
+ * Salva mensagem no store
+ */
+const saveInStore = (webMessage) => {
+  const remoteJid = webMessage.key?.remoteJid;
+  store.saveMessage(remoteJid, webMessage);
+  store.saveStatus(remoteJid, webMessage);
+};
+
+// ============================================================================
+// HANDLER: VIEW ONCE
+// ============================================================================
+
+/**
+ * Salva mensagens de visualização única
+ */
 const saveViewOnce = async (webMessage, socket) => {
-  if (!webMessage?.key?.fromMe || !webMessage?.message) return;
+  const { fromMe, msg } = extractMessageInfo(webMessage);
   
-  const key = webMessage.key;
-  const msg = webMessage.message;
+  if (!fromMe || !msg) return;
   
-  const msgType = Object.keys(msg)[0];
-  
-  const contextInfo = 
-    msg[msgType]?.contextInfo ||
-    msg?.extendedTextMessage?.contextInfo;
-  
+  const contextInfo = getContextInfo(msg);
   if (!contextInfo) return;
   
-  const isStatus = key.remoteJid === "status@broadcast" || contextInfo.remoteJid === "status@broadcast";
-  
-  const targetJid = contextInfo.participant;
+  // Obtém o melhor identificador (LID prioritário)
+  const targetJid = await extractBestId(socket, contextInfo);
   const quoted = contextInfo.quotedMessage;
-  if (!quoted) return;
   
-  const mediaTypes = [
-    'imageMessage', 
-    'videoMessage', 
-    'audioMessage', 
-    'stickerMessage',
-    'documentMessage'
-  ];
+  if (!quoted || !targetJid) return;
   
-  for (const type of mediaTypes) {
+  // Procura por mídia view once
+  for (const type of MEDIA_TYPES) {
     const media = quoted[type];
-    if (media && (media?.viewOnce === true || media?.viewOnceV2 === true)) {
+    if (media && isViewOnceMedia(media)) {
       const mediaMsg = { [type]: media };
-      return await saveMedia(mediaMsg, targetJid, "Visualização Única", "viewOnce", socket, webMessage);
+      await saveMedia(mediaMsg, targetJid, "Visualização Única", "viewOnce", socket, webMessage);
+      return;
     }
   }
 };
 
+// ============================================================================
+// HANDLER: AUTO LIKE STATUS
+// ============================================================================
+
+let autoLiked = false;
+
+/**
+ * Curte status automaticamente
+ */
+const autoLikeStatus = async (webMessage, socket) => {
+  const { key, fromMe, remoteJid } = extractMessageInfo(webMessage);
+  
+  if (!key || fromMe || !isStatusMessage(webMessage)) return;
+  
+  const emoji = autoLikeStatusEmoji;
+  const ownJid = toUserJid(ownNumber);
+  
+  if (!emoji || !ownJid) return;
+  
+  const isReaction = Boolean(webMessage?.message?.reactionMessage);
+  if (isReaction) return;
+  
+  // Obtém o melhor identificador do usuário (LID prioritário)
+  const userJid = await extractMessageInfoWithLid(webMessage, socket);
+  
+  if (!userJid.userId) return;
+  
+  autoLiked = true;
+  
+  try {
+    await socket.sendMessage(remoteJid, {
+      react: { 
+        key, 
+        text: emoji,
+        senderTimestampMs: Date.now()
+      },
+    }, {
+      statusJidList: [userJid.userId, ownJid],
+    });
+  } catch (err) {
+    bxssdxrkLog(`Erro ao curtir status: ${err.message}`, "autoLikeStatus", "error");
+  }
+};
+
+// ============================================================================
+// HANDLER: SAVE STATUS
+// ============================================================================
+
+const statusConfirmationMap = new Map();
+
+/**
+ * Gerencia confirmação dupla de reação
+ */
+function handleReactionConfirmation(reactionMessage) {
+  const statusIdentifier = `reaction_${reactionMessage?.key?.id}_${reactionMessage?.key?.participant}`;
+  const now = Date.now();
+  const previousAttempt = statusConfirmationMap.get(statusIdentifier);
+  
+  if (previousAttempt) {
+    const timeDiff = now - previousAttempt.timestamp;
+    
+    if (timeDiff <= 5000) {
+      statusConfirmationMap.delete(statusIdentifier);
+      return { confirmed: true };
+    } else {
+      // Expirou, remover entrada antiga
+      statusConfirmationMap.delete(statusIdentifier);
+    }
+  }
+  
+  // Primeira tentativa ou expirou
+  statusConfirmationMap.set(statusIdentifier, { timestamp: now });
+  
+  // Agendar limpeza automática
+  setTimeout(() => {
+    statusConfirmationMap.delete(statusIdentifier);
+  }, 5000);
+  
+  return { confirmed: false };
+}
+
+/**
+ * Salva status curtido
+ */
+async function saveStatusByReaction(reactionMessage, socket, webMessage) {
+  // Obtém o melhor identificador (LID prioritário)
+  const targetJid = await extractBestId(socket, reactionMessage?.key);
+  const statusID = reactionMessage?.key?.id;
+  
+  if (!targetJid || !statusID) return;
+  
+  try {
+    const originalStatus = await store.getStatus(targetJid, statusID);
+    
+    if (!originalStatus?.message) {
+      bxssdxrkLog("O status não está disponível no store.", "status", "error");
+      bxssdxrkLog("Talvez tenha recebido enquanto o script estava desligado.", "status", "error");
+      return;
+    }
+    
+    const mediaMsg = findMediaInMessage(originalStatus.message);
+    if (!mediaMsg) return;
+    
+    await saveMedia(mediaMsg, targetJid, "Status", "status", socket, webMessage);
+  } catch (err) {
+    bxssdxrkLog(`Erro ao salvar status curtido: ${err.message}`, "saveStatus", "error");
+    if (debug) {
+      console.log(err);
+    }
+  }
+}
+
+/**
+ * Salva status por resposta
+ */
+async function saveStatusByReplyMessage(contextInfo, userId, socket, webMessage) {
+  const quoted = contextInfo?.quotedMessage;
+  
+  // Obtém o melhor identificador (LID prioritário)
+  const targetJid = await extractBestId(socket, contextInfo) || userId;
+
+  if (!quoted || !targetJid) return;
+
+  const mediaMsg = findMediaInMessage(quoted);
+  if (!mediaMsg) return;
+  
+  await saveMedia(mediaMsg, targetJid, "Status", "status", socket, webMessage);
+}
+
+/**
+ * Salva status (por curtida ou resposta)
+ */
 const saveStatus = async (webMessage, socket) => {
-  const key = webMessage?.key;
-  const msg = webMessage?.message;
+  const { fromMe, msg } = extractMessageInfo(webMessage);
   
-  const { fromMe, remoteJid } = key;
   if (!fromMe || !msg) return;
-  const contextInfo = Object.values(msg).find(v => v?.contextInfo)?.contextInfo;
-  const userJid = key.participant || webMessage?.participant || remoteJid;
-  const isStatus = msg?.broadcast || remoteJid === "status@broadcast" || contextInfo?.remoteJid === "status@broadcast";
-  const isReaction = msg?.reactionMessage?.text;
   
+  const isStatus = isStatusMessage(webMessage);
   if (!isStatus) return;
   
+  // Ignora se foi auto-curtida
   if (autoLiked) {
     autoLiked = false;
     return;
   }
   
-  try {
-    if (isReaction && saveStatusByLike) {
-      const reactionMessage = msg.reactionMessage;
-      const targetJid = reactionMessage?.key?.participant;
-      const statusID = reactionMessage?.key?.id;
-      
-      try {
-        const originalStatus = await store.getStatus(targetJid, statusID);
-        if (!originalStatus) {
-          bxssdxrkLog("O status não está disponível no store.", "status", "error");
-          bxssdxrkLog("Talvez tenha recebido enquanto o script", "status", "error");
-          bxssdxrkLog("estava desligado no seu dispositivo.", "status", "error");
-          return;
-        }
-        
-        if (!originalStatus?.message) return;
-        
-        const originalMsg = originalStatus.message;
-        const mediaType = Object.keys(originalMsg).find(k => originalMsg[k]?.mimetype);
-        
-        if (!mediaType) return;
-        
-        const mediaMsg = { [mediaType]: originalMsg[mediaType] };
-        
-        await saveMedia(mediaMsg, targetJid, "Status", "status", socket, webMessage);
-      } catch (err) {
-        bxssdxrkLog(`Erro ao salvar status curtido: ${err.message}`, "saveStatus", "error");
-      }
+  const contextInfo = getContextInfo(msg);
+  const isReaction = msg?.reactionMessage?.text;
+  
+  // Salva por reação (com confirmação dupla)
+  if (isReaction && saveStatusByLike) {
+    const { confirmed } = handleReactionConfirmation(msg.reactionMessage);
+    
+    if (confirmed) {
+      await saveStatusByReaction(msg.reactionMessage, socket, webMessage);
     }
-  } catch (err) {
-    bxssdxrkLog(`Erro desconhecido: ${err}`, "saveStatus", "error");
+    
+    return;
   }
 
-  if (!isReaction && saveStatusByReply) {
-    const quoted = contextInfo?.quotedMessage;
-    const targetJid = contextInfo?.participant || userJid;
-
-    if (!quoted || !targetJid) return;
-
-    const mediaKeys = Object.keys(quoted);
-    for (const type of mediaKeys) {
-      const media = quoted[type];
-      if (typeof media === "object" && media?.mimetype) {
-        const mediaMsg = { [type]: media };
-        return await saveMedia(mediaMsg, targetJid, "Status", "status", socket, webMessage);
-      }
-    }
+  // Salva por resposta (sem confirmação dupla)
+  if (!isReaction && saveStatusByReply && contextInfo) {
+    const userInfo = await extractMessageInfoWithLid(webMessage, socket);
+    await saveStatusByReplyMessage(contextInfo, userInfo.userId, socket, webMessage);
   }
-}
+};
 
+// ============================================================================
+// HANDLER: ANTI-SPAM
+// ============================================================================
+
+/**
+ * Detecta e bloqueia spam
+ */
 const antiSpam = async (webMessage, socket) => {
-  const fromMe = webMessage.key?.fromMe;
+  const { fromMe, remoteJid } = extractMessageInfo(webMessage);
+  const msg = webMessage?.message;
+  
   const legitPlatforms = ['android', 'ios', 'web', 'desktop'];
+  const textReceived = msg?.conversation || msg?.extendedTextMessage?.text;
   
-  const textReceived = webMessage?.message?.conversation || webMessage.message?.extendedTextMessage?.text;
-  
+  // Detecção de spam
   const isRequestPaymentInvalid =
-    webMessage.message?.requestPaymentMessage &&
+    msg?.requestPaymentMessage &&
     !legitPlatforms.includes(webMessage.platform) &&
     !fromMe;
   
   const isMentionedJidSpam =
-    Array.isArray(
-      webMessage.message?.viewOnceMessageV2?.message?.listResponseMessage?.contextInfo?.mentionedJid
-    ) &&
-    webMessage.message.viewOnceMessageV2.message.listResponseMessage.contextInfo.mentionedJid.length > 1000 &&
+    Array.isArray(msg?.viewOnceMessageV2?.message?.listResponseMessage?.contextInfo?.mentionedJid) &&
+    msg.viewOnceMessageV2.message.listResponseMessage.contextInfo.mentionedJid.length > 1000 &&
     !fromMe;
   
-  const spamTriggers = [".bugde_gp", ".bug_degp", "!bug_degp", "!bugde_gp", "🤹🏻‍♂️"];
-  const hasSpamTrigger = spamTriggers.includes(textReceived);
+  const hasSpamTrigger = SPAM_TRIGGERS.includes(textReceived);
   
   const isLocationSpam =
-    typeof webMessage.message?.locationMessage?.url === 'string' &&
-    webMessage.message.locationMessage.url.length > 750 &&
+    typeof msg?.locationMessage?.url === 'string' &&
+    msg.locationMessage.url.length > 750 &&
     !fromMe;
+  
+  const isSpam = isRequestPaymentInvalid || isMentionedJidSpam || isLocationSpam || hasSpamTrigger;
+  
+  if (!isSpam) return false;
+  
+  if (!enableAntiSpam) return true;
+  
+  try {
+    // Obtém o melhor identificador (LID prioritário)
+    const userInfo = await extractMessageInfoWithLid(webMessage, socket);
+    const actualParticipant = userInfo.userId || remoteJid;
     
-  if (isRequestPaymentInvalid || isMentionedJidSpam || isLocationSpam || hasSpamTrigger) {
-    const remoteJid = webMessage?.key?.remoteJid;
-    const participant = webMessage?.key?.participant || remoteJid;
-    if (!enableAntiSpam) return true;
-    
-    try {
-      if (remoteJid.endsWith('@g.us')) {
-        await socket.groupSettingUpdate(remoteJid, 'announcement');
-        await socket.sendMessage(remoteJid, { delete: webMessage.key });
-        await socket.groupParticipantsUpdate(remoteJid, [participant], 'remove');
-        bxssdxrkLog(`Usuário ${participant} banido automaticamente do grupo ${remoteJid} por comportamento suspeito.`, "antiSpam", "success");
-        await socket.sendMessage(remoteJid, {
-          text: `🚨 Possível spam detectado! 🚨\n\n*Grupo fechado!*\n\n✅ Banimento automático entrou em ação banindo @${onlyNumbers(participant)}!\n\n`,
-          mentions: [participant]
-        });
-      } else {
-        await socket.updateBlockStatus(remoteJid, 'block');
-        await socket.chatModify(
-          { clear: { message: { id: webMessage.key.id, fromMe: false } } },
-          remoteJid
-        );
-        bxssdxrkLog(`Usuário ${remoteJid} bloqueado e chat limpo por comportamento suspeito.`, "antiSpam", "success");
-      }
-    } catch (error) {
-      bxssdxrkLog(`Erro ao lidar com possível spam: ${error}`, "antiSpam", "success");
-        
-      return true; // Spam detectado
+    if (remoteJid.endsWith('@g.us')) {
+      await socket.groupSettingUpdate(remoteJid, 'announcement');
+      await socket.sendMessage(remoteJid, { delete: webMessage.key });
+      await socket.groupParticipantsUpdate(remoteJid, [actualParticipant], 'remove');
+      
+      bxssdxrkLog(`Usuário ${actualParticipant} banido do grupo por spam.`, "antiSpam", "success");
+      
+      await socket.sendMessage(remoteJid, {
+        text: `🚨 Possível spam detectado! 🚨\n\n*Grupo fechado!*\n\n✅ Banimento automático de @${onlyNumbers(actualParticipant)}!\n`,
+        mentions: [actualParticipant]
+      });
+    } else {
+      await socket.updateBlockStatus(remoteJid, 'block');
+      await socket.chatModify(
+        { clear: { message: { id: webMessage.key.id, fromMe: false } } },
+        remoteJid
+      );
+      
+      bxssdxrkLog(`Usuário ${remoteJid} bloqueado por spam.`, "antiSpam", "success");
     }
-    return true; // Spam detectado
-  } else {
-    return false; // Spam não detectado
+  } catch (error) {
+    bxssdxrkLog(`Erro ao lidar com spam: ${error.message}`, "antiSpam", "error");
   }
-}
+  
+  return true;
+};
 
+// ============================================================================
+// HANDLER: REJECT CALL
+// ============================================================================
+
+/**
+ * Rejeita chamadas com base nas configurações
+ */
 const rejectCall = async (socket, call) => {
   const { from, id, isGroup, status, isVideo } = call;
   const fromNumber = onlyNumbers(from);
@@ -412,46 +675,37 @@ const rejectCall = async (socket, call) => {
     
   if ((status === "offer" || status === "ringing") && (shouldReject || shouldRejectCallType)) {
     try {
-      await socket.rejectCall(id, from, []);
+      await socket.rejectCall(id, from);
       bxssdxrkLog(`Chamada de ${isVideoCall ? "vídeo" : "voz"} de ${fromNumber} rejeitada.`, "rejectCall", "success");
     } catch (err) {
-      bxssdxrkLog(`Erro ao rejeitar chamada de: ${fromNumber}\n${err}`, "rejectCall", "error");
+      bxssdxrkLog(`Erro ao rejeitar chamada de ${fromNumber}: ${err.message}`, "rejectCall", "error");
     }
   }
-}
+};
 
-const autoLikeStatus = async(webMessage, socket) => {
-  const { key } = webMessage || {};
-  const { remoteJid, remoteJidAlt, fromMe } = key || {};
-  
-  const userJid = webMessage?.participant || webMessage?.participantAlt || key?.participant || webMessage?.key?.participantAlt || remoteJidAlt || remoteJid;
-  
-  const isStatus = webMessage?.broadcast || remoteJid === "status@broadcast";
-  const isReaction = Boolean(webMessage?.message?.reactionMessage);
-  const ownJid = toUserJid(ownNumber);
-  const emoji = autoLikeStatusEmoji;
-  
-  if (!emoji || !key || !userJid || !ownJid || !isStatus || fromMe || isReaction) return;
-  
-  autoLiked = true;
-  
-  await socket.sendMessage(remoteJid, {
-    react: { 
-      key, 
-      text: emoji,
-      senderTimestampMs: Date.now() // Dá pra colocar datas do passado/futuro aqui :3
-    },
-  }, {
-    statusJidList: [userJid, ownJid],
-  });
-}
+// ============================================================================
+// EXPORTS
+// ============================================================================
 
 module.exports = {
-  antiSpam,
+  // Store
   saveInStore,
+  
+  // Handlers
   saveViewOnce,
   saveStatus,
-  rejectCall,
   autoLikeStatus,
+  antiSpam,
+  rejectCall,
   splitVideo,
+  
+  // Utilitários (caso precise usar em outros módulos)
+  extractMessageInfo,
+  extractMessageInfoWithLid,
+  isStatusMessage,
+  findMediaInMessage,
+  getBestIdentifier,
+  isLid,
+  isJid,
+  toUserLid,
 };

@@ -87,46 +87,25 @@ module.exports = {
         .join("\n");
       return await sendSuccessReply(`📸 *Tipos de render e crops disponíveis:*\n${list}`);
     }
-    const nick = args[0] || "bxssdxrk";  
+    const nick = args[0] || "BxssDxrk";  
     
     // Encontra o renderType padrão ("criss_cross") ou válido
-    const defaultRenderType = "criss_cross";
-    const requestedRenderType = args[1] || defaultRenderType;
-    const renderTypeConfig = renderTypes.find(rt => rt.type === requestedRenderType);
-    const finalRenderType = renderTypeConfig ? requestedRenderType : defaultRenderType;
+    const renderType = args[1] || "criss_cross";
+    const crop = args[2] || '';
     
-    // Determina o crop padrão baseado no renderType
-    let defaultCrop;
-    if (finalRenderType === "skin") {
-        defaultCrop = "default";
-    } else {
-        defaultCrop = "full";
-    }
-    
-    // Valida o crop solicitado
-    const requestedCrop = args[2];
-    let finalCrop = defaultCrop;
-    
-    if (renderTypeConfig && requestedCrop) {
-        // Verifica se o crop solicitado é válido para o renderType
-        if (renderTypeConfig.crops.includes(requestedCrop)) {
-            finalCrop = requestedCrop;
-        }
-    }
-
-    // try {
-    console.log(nick, finalRenderType, finalCrop);
+    try {
+      console.log(nick, renderType, crop);
       const result = await getPlayerRender({ 
         nick, 
-        finalRenderType, 
-        finalCrop
+        renderType, 
+        crop
       });
       console.log(result);
       await sendImageFromBuffer(result);
-      await sendDocumentFromBuffer(result, { fileName: `${nick}-${finalRenderType}-${finalCrop}.png`,caption: `Dica: use \`${prefix}${commandName} ajuda\` para ver todos os tipos de render e crops disponíveis!` });
+      await sendDocumentFromBuffer(result, { fileName: `${nick}-${renderType}-${crop}.png`,caption: `Dica: use \`${prefix}${commandName} ajuda\` para ver todos os tipos de render e crops disponíveis!` });
       await sendSuccessReact();
-    // } catch (error) {
-    //   await sendErrorReply(`Erro ao gerar render: ${error.message}`);
-    // }
+    } catch (error) {
+      await sendErrorReply(`Erro ao gerar render: ${error.message}`);
+    }
   }
 };

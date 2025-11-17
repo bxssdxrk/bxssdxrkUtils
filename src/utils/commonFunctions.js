@@ -1,6 +1,6 @@
 const { getContentType, getDevice, downloadContentFromMessage } = require("@itsukichan/baileys");
 const axios = require("axios");
-const { onlyNumbers, toUserJid, isGroupJid, isUserJid, bxssdxrkLog, extractDataFromMessage } = require(".");
+const { onlyNumbers, toUserJid, isGroupJid, isJid, bxssdxrkLog, extractDataFromMessage } = require(".");
 const { commandPrefixes, tempDir } = require(`${BASE_DIR}/config`);
 const fs = require("fs");
 const path = require('path');
@@ -22,6 +22,37 @@ exports.createHelpers = ({ socket, webMessage }) => {
   } = extractDataFromMessage(webMessage, commandPrefixes);
   
   if (!remoteJid) return;
+
+  const nekoLabs = async ({ endpoint, content = {} }) => {
+    if (!endpoint) throw new Error('Precisa de um endpoint da API.');
+    if (typeof content !== 'object' || Array.isArray(content))
+      throw new Error('O parâmetro "content" deve ser um objeto.');
+  
+    const baseUrl = 'https://api.nekolabs.my.id';
+  
+    // Cria a query string manualmente, preservando URLs
+    const query = Object.entries(content)
+      .map(([key, value]) => {
+        // Se o valor parece ser uma URL (começa com http), não codifica
+        if (typeof value === 'string' && value.startsWith('http')) {
+          return `${encodeURIComponent(key)}=${value}`;
+        }
+        // Caso contrário, codifica normalmente
+        return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+      })
+      .join('&');
+  
+    // Garante que não tenha / duplo
+    const url = `${baseUrl.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}${
+      query ? `?${query}` : ''
+    }`;
+  
+    const { data } = await axios.get(url);
+  
+    if (!data || !data.success) throw new Error('Erro na resposta da API. Verifique se o endpoint está disponível: https://api.nekolabs.my.id/');
+  
+    return data?.result;
+  };
   
   const deleteFilesSync = (...files) => {
     files.forEach(file => {
@@ -35,7 +66,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     const quoted = webMessage.message?.extendedTextMessage?.contextInfo?.quotedMessage;
     const direct = webMessage.message;
   
-    const mediaTypes = ['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage'];
+    const mediaTypes = ['imageMessage', 'videoMessage', 'audioMessage', 'stickerMessage', 'documentMessage', 'documentWithCaptionMessage'];
   
     for (const type of mediaTypes) {
       if (quoted?.[type]) return { [type]: quoted[type] };
@@ -266,171 +297,123 @@ exports.createHelpers = ({ socket, webMessage }) => {
       type: 1
     }));
   };
+
+  /**
+   * Função auxiliar para construir mensagens com botões
+   */
+  const buildMessageWithButtons = (baseMsg, optionalParams = {}) => {
+    return {
+      ...baseMsg,
+      ...optionalParams,
+      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {})
+    };
+  };
   
   const sendTextWithButtons = async (text, optionalParams = {}) => {
-    const msg = {
-      text,
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 1
-    };
+    const msg = buildMessageWithButtons({ text }, optionalParams);
+    msg.headerType = 1;
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
 
   const sendImageFromFileWithButtons = async (file, optionalParams = {}) => {
-    const msg = {
-      image: fs.readFileSync(file),
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 4
-    };
+    const msg = buildMessageWithButtons({ image: fs.readFileSync(file) }, optionalParams);
+    msg.headerType = 4;
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
 
   const sendImageFromURLWithButtons = async (url, optionalParams = {}) => {
-    const msg = {
-      image: { url },
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 4
-    };
-    return await socket.sendMessage(remoteJid, msg, { url, quoted: webMessage });
+    const msg = buildMessageWithButtons({ image: { url } }, optionalParams);
+    msg.headerType = 4;
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
 
   const sendImageFromBufferWithButtons = async (buffer, optionalParams = {}) => {
-    const msg = {
-      image: buffer,
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 4
-    };
+    const msg = buildMessageWithButtons({ image: buffer }, optionalParams);
+    msg.headerType = 4;
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
   
   const sendVideoFromFileWithButtons = async (file, optionalParams = {}) => {
-    const msg = {
-      video: fs.readFileSync(file),
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 5
-    };
+    const msg = buildMessageWithButtons({ video: fs.readFileSync(file) }, optionalParams);
+    msg.headerType = 5;
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
   
   const sendVideoFromURLWithButtons = async (url, optionalParams = {}) => {
-    const msg = {
-      video: { url },
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 5
-    };
-    return await socket.sendMessage(remoteJid, msg, { url, quoted: webMessage });
+    const msg = buildMessageWithButtons({ video: { url } }, optionalParams);
+    msg.headerType = 5;
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
   
   const sendVideoFromBufferWithButtons = async (buffer, optionalParams = {}) => {
-    const msg = {
-      video: buffer,
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 5
-    };
+    const msg = buildMessageWithButtons({ video: buffer }, optionalParams);
+    msg.headerType = 5;
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
   
   const sendDocumentFromFileWithButtons = async (file, optionalParams = {}) => {
-    const msg = {
-      document: fs.readFileSync(file),
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 1
-    };
+    const msg = buildMessageWithButtons({ document: fs.readFileSync(file) }, optionalParams);
+    msg.headerType = 1;
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
 
   const sendDocumentFromURLWithButtons = async (url, optionalParams = {}) => {
-    const msg = {
-      document: { url },
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 1
-    };
-    return await socket.sendMessage(remoteJid, msg, { url, quoted: webMessage });
+    const msg = buildMessageWithButtons({ document: { url } }, optionalParams);
+    msg.headerType = 1;
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
 
   const sendDocumentFromBufferWithButtons = async (buffer, optionalParams = {}) => {
-    const msg = {
+    const msg = buildMessageWithButtons({ 
       document: buffer,
       mimetype: optionalParams.fileName
         ? mime.lookup(optionalParams.fileName) || "application/octet-stream"
         : "application/octet-stream",
       fileName: optionalParams.fileName || `${Date.now()}.bin`,
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {}),
-      headerType: 1
-    };
+    }, optionalParams);
+    msg.headerType = 1;
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
   
   const sendAudioFromFileWithButtons = async (file, optionalParams = {}) => {
-    optionalParams.mimetype = optionalParams.mimetype || "audio/mp4";
-    const msg = {
+    const msg = buildMessageWithButtons({ 
       audio: fs.readFileSync(file),
       mimetype: "audio/mp4",
       ptt: false,
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {})
-    };
+    }, optionalParams);
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
 
   const sendAudioFromURLWithButtons = async (url, optionalParams = {}) => {
-    optionalParams.mimetype = optionalParams.mimetype || "audio/mp4";
-    const msg = {
+    const msg = buildMessageWithButtons({ 
       audio: { url },
       mimetype: "audio/mp4",
       ptt: false,
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {})
-    };
-    return await socket.sendMessage(remoteJid, msg, { url, quoted: webMessage });
+    }, optionalParams);
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
 
   const sendAudioFromBufferWithButtons = async (buffer, optionalParams = {}) => {
-    optionalParams.mimetype = optionalParams.mimetype || "audio/mp4";
-    const msg = {
-      audio: { url },
+    const msg = buildMessageWithButtons({ 
+      audio: buffer,
       mimetype: "audio/mp4",
       ptt: false,
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {})
-    };
+    }, optionalParams);
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
   
   const sendStickerFromFileWithButtons = async (file, optionalParams = {}) => {
-    const msg = {
-      sticker: fs.readFileSync(file),
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {})
-    };
+    const msg = buildMessageWithButtons({ sticker: fs.readFileSync(file) }, optionalParams);
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
   
   const sendStickerFromURLWithButtons = async (url, optionalParams = {}) => {
-    const msg = {
-      sticker: { url },
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {})
-    };
-    return await socket.sendMessage(remoteJid, msg, { url, quoted: webMessage });
+    const msg = buildMessageWithButtons({ sticker: { url } }, optionalParams);
+    return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
   
   const sendStickerFromBufferWithButtons = async (buffer, optionalParams = {}) => {
-    const msg = {
-      sticker: buffer,
-      ...optionalParams,
-      ...(optionalParams.buttons ? { buttons: formatButtons(optionalParams.buttons) } : {})
-    };
+    const msg = buildMessageWithButtons({ sticker: buffer }, optionalParams);
     return await socket.sendMessage(remoteJid, msg, { quoted: webMessage });
   };
 
@@ -445,7 +428,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     return await socket.sendMessage(remoteJid, {
       image: { url },
       ...optionalParams
-    }, { url, quoted: webMessage });
+    }, { quoted: webMessage });
   };
   
   const sendImageFromBuffer = async (buffer, optionalParams = {}) => {
@@ -466,7 +449,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     return await socket.sendMessage(remoteJid, {
       video: { url },
       ...optionalParams
-    }, { url, quoted: webMessage });
+    }, { quoted: webMessage });
   };
   
   const sendVideoFromBuffer = async (buffer, optionalParams = {}) => {
@@ -487,7 +470,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     return await socket.sendMessage(remoteJid, {
       sticker: { url },
       ...optionalParams
-    }, { url, quoted: webMessage });
+    }, { quoted: webMessage });
   };
 
   const sendStickerFromBuffer = async (buffer, optionalParams = {}) => {
@@ -514,7 +497,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
       mimetype: "audio/mp4",
       ptt: false,
       ...optionalParams
-    }, { url, quoted: webMessage });
+    }, { quoted: webMessage });
   };
 
   const sendAudioFromBuffer = async (buffer, optionalParams = {}) => {
@@ -541,7 +524,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
       mimetype: mime.lookup(url) || "application/octet-stream",
       fileName: optionalParams.fileName || Date.now(),
       ...optionalParams
-    }, { url, quoted: webMessage });
+    }, { quoted: webMessage });
   };
   
   const sendDocumentFromBuffer = async (buffer, optionalParams = {}) => {
@@ -634,6 +617,7 @@ exports.createHelpers = ({ socket, webMessage }) => {
     onlyNumbers,
     toUserJid,
     isGroupJid,
-    isUserJid,
+    isJid,
+    nekoLabs,
   };
 };

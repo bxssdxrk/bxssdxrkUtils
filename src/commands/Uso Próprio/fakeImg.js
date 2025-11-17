@@ -1,41 +1,12 @@
-const { prefix, tempDir, stickerMetadata } = require(`${BASE_DIR}/config`);
+const { prefix } = require(`${BASE_DIR}/config`);
 const { bxssdxrkLog } = require(`${BASE_DIR}/utils`);
 const fs = require("fs");
-const path = require("path");
-const {
-  convertMediaToSticker,
-  convertMediaToStickerC,
-  convertMediaToStickerX,
-} = require(`${BASE_DIR}/utils/stickerUtils`);
-
-// Carrega metadata para sticker (packname e author)
-async function loadStickerMetadata() {
-  return {
-    packname: stickerMetadata.packName,
-    author: stickerMetadata.author,
-  };
-}
-
-// Valida se o tipo MIME ou extensão de arquivo é compatível com sticker
-function isValidMedia(mimeType = "", fileName = "") {
-  const validMimeTypes = [
-    "image/jpeg", "image/png", "image/gif", "image/avif",
-    "image/webp", "video/mp4", "video/webm",
-  ];
-  const validExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".mp4", ".webm"];
-
-  return (
-    validMimeTypes.includes(mimeType) ||
-    validExtensions.some(ext => fileName.toLowerCase().endsWith(ext))
-  );
-}
 
 module.exports = {
   name: "Fazer Imagem Fake",
   description: "Cria uma imagem que muda ao ser baixada",
   commands: ["fakeimg"],
   usage: `${prefix}fakeimg <mídia>`,
-
   handle: async ({
     webMessage,
     isImage,
@@ -53,7 +24,9 @@ module.exports = {
       return await sendErrorReply("Você precisa escolher uma imagem!");
     }
     try {
+      
       const mediaMsg = getMediaMsg(webMessage);
+      
       if (!mediaMsg) {
         return await sendErrorReply("Nenhuma mídia válida encontrada.");
       }
@@ -77,7 +50,7 @@ module.exports = {
       
       return await sendSuccessReact();
     } catch (err) {
-      bxssdxrkLog(err);
+      bxssdxrkLog(err, command.name, "error");
       return await sendErrorReply("Erro ao criar a figurinha. Veja o motivo no console.");
     }
   },

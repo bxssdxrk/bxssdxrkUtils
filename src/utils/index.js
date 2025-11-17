@@ -43,19 +43,45 @@ const toUserJid = (number) => {
 
 const isGroupJid = (jid) => {
   if (!jid) return false;
-  return jid.endsWith('@g.us') || false;
+  return jid.endsWith('@g.us');
 };
 
-const isUserJid = (jid) => {
-  if (!jid) return false;
-  return jid.endsWith('@s.whatsapp.net') || false;
-};
+/**
+ * Verifica se um ID é LID (@lid)
+ */
+function isLid(id) {
+  return id && typeof id === 'string' && id.includes('@lid');
+}
 
-const isUserLid = (lid) => {
-  if (!lid) return false;
-  return lid.endsWith('@lid') || false;
-};
+/**
+ * Verifica se um ID é JID válido (@s.whatsapp.net)
+ */
+function isJid(id) {
+  return id && typeof id === 'string' && id.includes('@s.whatsapp.net');
+}
 
+async function resolveLid (socket, participant, participantAlt) {
+  if (isLid(participant)) return participant;
+  if (isLid(participantAlt)) return participantAlt;
+
+  if (isJid(participant)) {
+    const result = await socket.getLidUser(participant).catch(() => null);
+    const lid = result?.[0]?.lid;
+    if (isLid(lid)) {
+      return lid;
+    }
+  }
+  
+  if (isJid(participantAlt)) {
+    const result = await socket.getLidUser(participantAlt).catch(() => null);
+    const lid = result?.[0]?.lid;
+    if (isLid(lid)) {
+      return lid;
+    }
+  }
+  return participant ?? participantAlt ?? null;
+}
+  
 const onlyLettersAndNumbers = (text) => {
   return text.replace(/[^a-zA-Z0-9]/g, "");
 };
@@ -66,6 +92,8 @@ const removeAccentsAndSpecialCharacters = (text) => {
 };
 
 const splitByCharacters = (str, characters) => {
+  if (!str) return [];
+  
   const escapedChars = characters.map((char) => 
     char === "\\" ? "\\\\" : char
   );
@@ -255,8 +283,10 @@ const extractDataFromMessage = (webMessage, commandPrefixes = ['.', '!', '/']) =
 
   const isReply = quotedMessagePaths.some(path => deepGet(webMessage, [path]));
 
-  const [command, ...args] = fullMessage.trim().split(/\s+/);
-  const prefix = command.charAt(0);
+  const splitMessage = fullMessage.trim().split(/\s+/);
+  const command = splitMessage[0] || '';
+  const args = splitMessage.slice(1);
+  const prefix = command.charAt(0) || '';
 
   let commandWithoutPrefix = command;
   while (commandWithoutPrefix && commandPrefixes.includes(commandWithoutPrefix.charAt(0))) {
@@ -389,8 +419,9 @@ module.exports = {
   onlyNumbers,
   toUserJid,
   isGroupJid,
-  isUserJid,
-  isUserLid,
+  isJid,
+  isLid,
+  resolveLid,
   onlyLettersAndNumbers,
   removeAccentsAndSpecialCharacters,
   splitByCharacters,

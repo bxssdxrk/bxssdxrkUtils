@@ -12,7 +12,8 @@ module.exports = {
     sendImageFromURL,
     sendVideoFromURL,
     sendAudioFromURL,
-    sendStickerFromURL
+    sendStickerFromURL,
+    sendDocumentFromURL,
   }) => {
     await sendWaitReact();
     const link = args[0];
@@ -30,6 +31,10 @@ module.exports = {
       break;
       case "sticker":
         await sendStickerFromURL(link);
+      break;
+      case "document":
+      case "doc":
+        await sendDocumentFromURL(link);
       break;
     }
     await sendSuccessReact();

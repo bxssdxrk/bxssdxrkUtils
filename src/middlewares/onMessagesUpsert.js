@@ -1,7 +1,5 @@
-const fs = require("fs");
-const path = require("path");
 const { onlyChatsCommands } = require(`${BASE_DIR}/config`);
-const { onlyNumbers } = require(`${BASE_DIR}/utils`);
+const { resolveLid } = require(`${BASE_DIR}/utils`);
 const { 
   saveInStore,
   saveViewOnce,
@@ -14,22 +12,25 @@ const { createHelpers } = require(`${BASE_DIR}/utils/commonFunctions`);
 const {
   setGroupMetadata,
   getGroupMetadata,
-  hasGroupMetadata,
-  delGroupMetadata,
-  flushGroupCache
+  hasGroupMetadata
 } = require(`${BASE_DIR}/utils/groupCache`);
 
 exports.onMessagesUpsert = async ({ socket, messages }) => {
   if (!messages.length) return;
   
   for (const webMessage of messages) {
-  //  await Promise.all(messages.map(async (webMessage) => {
-  
-  if (!webMessage?.key) continue;
+    if (!webMessage?.key) continue;
   
     const spamDetected = await antiSpam(webMessage, socket);
+    let { participant, participantAlt } = webMessage?.key;
+
+    const lid = await resolveLid(socket, participant, participantAlt);
+    webMessage.key.participant = lid;
+    webMessage.key.participantAlt = lid;
+    
     saveInStore(webMessage);
     if (spamDetected) continue;
+    
     await autoLikeStatus(webMessage, socket);
     await saveViewOnce(webMessage, socket);
     await saveStatus(webMessage, socket);
@@ -44,5 +45,4 @@ exports.onMessagesUpsert = async ({ socket, messages }) => {
     }
     await handleCommand(commonFunctions);
   }
-  // }));
 };

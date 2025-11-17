@@ -23,6 +23,19 @@ const {
   } = require("./utils/groupCache");
 const { markOnlineOnConnect, debug } = require('./config');
 
+const createStoreById = require('./utils/store');
+const store = createStoreById();
+
+async function getMessageFromStore(key) {
+  if (store) {
+    const msg = await store.getMessage(key);
+    return msg?.message;
+  }
+  return {
+    conversation: ":3"
+  };
+}
+
 const msgRetryCounterCache = new NodeCache();
 
 async function saveAllGroupsCache(socket) {
@@ -33,7 +46,7 @@ async function saveAllGroupsCache(socket) {
     const groups = await socket.groupFetchAllParticipating();
     for (const [jid, metadata] of Object.entries(groups)) {
       if (!hasGroupMetadata(jid)) {
-        await setGroupMetadata(jid, metadata);
+        setGroupMetadata(jid, metadata);
         cachedGroupsCount ++;
       } else {
         alreadyCached ++;
@@ -41,7 +54,7 @@ async function saveAllGroupsCache(socket) {
     }
     
     if (cachedGroupsCount > 0) {
-      log = `${cachedGroupsCount} grupos salvos em cache com sucesso!`;
+      let log = `${cachedGroupsCount} grupos salvos em cache com sucesso!`;
       if (alreadyCached > 0) {
         log += ` ${alreadyCached} já estavam em cache.`;
       }
@@ -72,8 +85,9 @@ async function connect() {
     markOnlineOnConnect,
     msgRetryCounterCache,
     emitOwnEvents: true,
+    getMessage: async key => await getMessageFromStore(key),
     syncFullHistory: true,
-    cachedGroupMetadata: async (jid) => getGroupMetadata(jid),
+    cachedGroupMetadata: getGroupMetadata,
   });
   
   if (!socket.authState.creds.registered) {
@@ -82,7 +96,7 @@ async function connect() {
 
     if (!phoneNumber || isNaN(phoneNumber)) {
       bxssdxrkLog('Número de telefone inválido!', "sistema", "error");
-      setTimeout(() => process.exit(1), 1000);
+      setTimeout(() => process.exit(1), 10 * 1000);
     }
     const code = await socket.requestPairingCode(onlyNumbers(phoneNumber));
     
@@ -93,7 +107,7 @@ async function connect() {
     const { connection, lastDisconnect } = update;
 
     if (connection === "close") {
-      const statusCode = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+      const statusCode = lastDisconnect.error?.output?.statusCode;
 
       if (statusCode === DisconnectReason.loggedOut) {
         bxssdxrkLog("Script desconectado!", "sistema", "error");
@@ -118,14 +132,13 @@ async function connect() {
             bxssdxrkLog("Conexão proibida!", "sistema", "warn");
             break;
           case DisconnectReason.restartRequired:
-            bxssdxrkLog("Reinício necessário. Reiniciando...", "sistema", "info");
-            setTimeout(() => process.exit(1), 1000);
+            bxssdxrkLog("Reinício necessário.", "sistema", "info");
             break;
           case DisconnectReason.unavailableService:
             bxssdxrkLog("Serviço indisponível!", "sistema", "warn");
             break;
         }
-
+        
         const newSocket = await connect();
         load(newSocket);
       }

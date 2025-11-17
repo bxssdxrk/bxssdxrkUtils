@@ -7,8 +7,8 @@ exports.onGroupUpdate = async ({
 }) => {
   try {
     const metadata = await socket.groupMetadata(event.id);
-    await setGroupMetadata(event.id, metadata);
+    setGroupMetadata(event.id, metadata);
   } catch (err) {
-    bxssdxrkLog(`Erro ao obter/salvar metadata do grupo ${id}: ${err?.message || err}`, "groupCache", "error");
+    bxssdxrkLog(`Erro ao obter/salvar metadata do grupo ${event.id}: ${err?.message || err}`, "groupCache", "error");
   }
 };

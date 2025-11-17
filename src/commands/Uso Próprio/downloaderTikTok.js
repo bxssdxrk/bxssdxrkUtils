@@ -1,76 +1,98 @@
-const { prefix } = require(`${BASE_DIR}/config`);
-const { bxssdxrkLog } = require(`${BASE_DIR}/utils`);
-const axios = require('axios');
-
-const baseUrl = `https://abhi-api.vercel.app/api/download/tiktok?url=`;
-
-async function downloadTikTok(url) {
-  if (!url) throw new Error('Você deve passar um link.');
+const { prefix } = require(`${BASE_DIR}/config`);  
+const { bxssdxrkLog } = require(`${BASE_DIR}/utils`);  
   
-  if (!url.startsWith('http') || !url.includes('tiktok')) throw new Error('Não é um link válido do tiktok!');
-  try {
-    const { data } = await axios.get(`${baseUrl}${encodeURIComponent(url)}`, { timeout: 15000 });
-    return data.result;
-  } catch {
-    throw new Error('Erro na API ou link inválido.');
-  }
-}
-
-async function shortenURL(longUrl) {
-  try {
-    const { data } = await axios.get('https://is.gd/create.php', {
-      params: {
-        format: 'simple',
-        url: longUrl
-      }
-    });
-    if (!data) throw new Error('Sem resultado!');
-    return data;
-  } catch (error) {
-    throw new Error('Erro ao encurtar a URL: ' + error.message);
-  }
-}
-
-module.exports = {
-  name: "Downloader TikTok",
-  description: "Baixa um vídeo do TikTok (Este comando pode ficar indisponível futuramente devido á API.)",
-  commands: ["tiktokdl", "ttkdl", "tikdl"],
-  usage: `${prefix}tiktokdl <link do tiktok>`,
-  handle: async ({
-    args,
-    sendWaitReact,
-    sendWarningReply,
-    sendErrorReply,
+module.exports = {  
+  name: "TikTok Downloader",  
+  description: "Baixa um vídeo ou áudio do TikTok",  
+  commands: ["tikdl"],  
+  usage: `${prefix}tikdl <link> [video|audio] ou [video|audio] <link>`,  
+  handle: async ({   
+    sendWaitReact,  
+    sendErrorReply,  
+    sendSuccessReact,  
+    fullArgs,  
+    sendAlbumMessage,
     sendVideoFromURL,
-    sendVideoFromURLWithButtons,
-    sendImageFromURLWithButtons,
-    sendAudioFromURLWithButtons,
-    sendSuccessReact
-  }) => {
-    await sendWaitReact();
-    const videoUrl = args[0];
-    
-    try {
-      if (!videoUrl) {
-        return await sendWarningReply("Você precisa passar um link.");
+    sendAudioFromURL,
+    args,  
+    nekoLabs,  
+  }) => {  
+    await sendWaitReact();  
+    try {  
+      const allArgs = fullArgs.split(' ');  
+      
+      const normalizeText = (text) => {
+        return text.toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '');
+      };
+      
+      let url = null;
+      let type = 'video'; // padrão
+      
+      for (const arg of allArgs) {
+        const normalized = normalizeText(arg);
+        
+        if (arg.includes('http') || arg.includes('tiktok')) {
+          url = arg;
+        } else if (normalized === 'audio' || normalized === 'video') {
+          type = normalized;
+        }
       }
-      const result = await downloadTikTok(videoUrl);
-      const noWatermark = await shortenURL(result.watermark) || result.watermark;
-      const watermark = await shortenURL(result.nowm) || result.nowm;
-      const thumbnail = await shortenURL(result.thumbnail) || result.thumbnail;
-      const audio = await shortenURL(result.audio) || result.audio;
-      let caption = `*Autor:* ${result.author}\n\n*Descrição:* ${result.title}`;
-      const buttons = [
-        { text: `Thumbnail`, id: `?sendfromurl ${thumbnail} | image`},
-        { text: `Áudio`, id: `?sendfromurl ${audio} | audio`},
-        { text: `Sem marca D'água`, id: `?sendfromurl ${noWatermark} | video`},
-        { text: `Com marca D'água`, id: `?sendfromurl ${watermark} | video`},
-      ];
-      await sendVideoFromURLWithButtons(result.watermark, { buttons, caption });
-     return await sendSuccessReact();
-    } catch (error) {
-      bxssdxrkLog("Erro ao baixar TikTok:", "tiktokdl", "error");
-      await sendErrorReply(error.message);
-    }
-  }
+      
+      if (!url) {
+        return await sendErrorReply('Por favor, forneça um link do TikTok.');
+      }
+        
+      const resp = await nekoLabs({  
+        endpoint: 'downloader/tiktok',  
+        content: {  
+          url: url  
+        }  
+      });
+      
+      const isAudio = type === 'audio';
+        
+      const caption = [  
+        `— *Vídeo:*`,  
+        `- *Link:* ${url}`,  
+        `- *Publicado em:* ${resp.create_at || "Data desconhecida"}`,  
+        `- *Visualizações:* ${resp.stats?.play || "0"}`,  
+        `- *Curtidas:* ${resp.stats?.like || "0"}`,  
+        `- *Comentários:* ${resp.stats?.comment || "0"}`,  
+        `- *Compartilhamentos:* ${resp.stats?.share || "0"}`,  
+        `- *Autor:* ${resp.author?.name || "Desconhecido"} (${resp.author?.username || "?"})`,  
+        `- *Título:* ${resp.title || "Sem título"}`,  
+        '',  
+        `— *Música:*`,  
+        `- *Título:* ${resp.music_info?.title || "Desconhecida"}`,  
+        `- *Autor:* ${resp.music_info?.author || ""}`,  
+      ].join('\n');  
+  
+      // Verifica se há imagens no resultado
+      if (resp.images && Array.isArray(resp.images) && resp.images.length > 0) {
+        const albumMedias = resp.images.map((imageUrl, index) => {
+          if (index === 0) {
+            // Primeira imagem com caption
+            return { image: { url: imageUrl }, caption: caption };
+          } else {
+            // Demais imagens sem caption
+            return { image: { url: imageUrl } };
+          }
+        });
+        
+        await sendAlbumMessage(albumMedias);
+      } else if (isAudio) {
+        await sendAudioFromURL(resp?.musicUrl);
+      } else {
+        await sendVideoFromURL(resp?.videoUrl, { caption });
+      }
+      
+      await sendSuccessReact();  
+  
+    } catch (error) {  
+      await bxssdxrkLog(error?.message, module?.exports?.name, "error");  
+      await sendErrorReply(error);  
+    }  
+  }  
 };

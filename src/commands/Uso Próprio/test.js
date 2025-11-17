@@ -1,6 +1,5 @@
-const fs = require("fs");
 const { prefix } = require(`${BASE_DIR}/config`);
-const { onlyNumbers, bxssdxrkLog } = require(`${BASE_DIR}/utils`);
+const { bxssdxrkLog } = require(`${BASE_DIR}/utils`);
 
 module.exports = {
   name: "Teste",
@@ -15,6 +14,7 @@ module.exports = {
     await sendWaitReact();
     try {
       bxssdxrkLog("Teste concluido!", "teste", "success");
+      
       await sendSuccessReply("Teste concluido!");
     } catch (error) {
       bxssdxrkLog("Teste falhou!", "teste", "error");

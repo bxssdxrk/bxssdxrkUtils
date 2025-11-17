@@ -1,15 +1,17 @@
 const { connect } = require("./src/connection");
 const { load } = require("./src/loader");
-const { bxssdxrkBanner } = require("./src");
-const { bxssdxrkLog } = require("./src/utils/bxssdxrkUtils");
+const { bxssdxrkBanner, bxssdxrkLog, checkForUpdates, clearTempDir } = require("./src/utils");
+
 async function start() {
   try {
+    clearTempDir();
     bxssdxrkBanner();
-    bxssdxrkLog("Iniciando meus componentes internos...", "info", "info");
+    await checkForUpdates();
+    bxssdxrkLog("Iniciando, aguarde!", "sistema", "info");
     const socket = await connect();
     load(socket);
   } catch (error) {
-    bxssdxrkLog(`Erro desconhecido iniciando o script: ${error}`, "error", "error");
+    bxssdxrkLog(`Erro ao iniciar o socket: ${error}`, "sistema", "error");
   }
 }
 

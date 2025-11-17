@@ -8,8 +8,11 @@ function createDir(p) {
 }
 
 function readJSON(p, def = {}) {
-  try { return JSON.parse(fs.readFileSync(p)); }
-  catch { return def; }
+  try { 
+    return JSON.parse(fs.readFileSync(p)); 
+  } catch (err) { 
+    return def; 
+  }
 }
 
 function writeJSON(p, data) {
@@ -30,7 +33,7 @@ function createStore(base = `${databaseDir}/store`) {
   return {
     saveMessage(jid, msg) {
       const id = msg?.key?.id;
-      const from = msg?.key?.participant || msg?.key?.remoteJid;
+      const from = msg?.key?.participant || msg?.key?.participantAlt || msg?.key?.remoteJid || msg?.key?.remoteJidAlt;
       const isReaction = !!msg.message?.reactionMessage;
       
       if (!jid || !id || !from || isReaction || jid === "status@broadcast") return;
@@ -39,12 +42,12 @@ function createStore(base = `${databaseDir}/store`) {
       writeJSON(file, { ...msg, timestamp: Date.now() });
     },
     getMessage(key) {
-      const remote = key?.remoteJid;
-      const user = key?.participant || key?.remoteJid;
+      const remoteJid = key?.remoteJid || key?.remoteJidAlt;
+      const userJid = key?.participant || key?.participantAlt || remoteJid;
       const id = key?.id;
-      if (!remote || !user || !id) return null;
+      if (!remoteJid || !userJid || !id) return null;
     
-      const file = path.join(base, 'messages', remote, user, id + '.json');
+      const file = path.join(base, 'messages', remoteJid, userJid, id + '.json');
       return readJSON(file, null);
     },
     getMessagesByUser(jid, participant) {
@@ -85,16 +88,16 @@ function createStore(base = `${databaseDir}/store`) {
             }
           }
           if (fs.readdirSync(userPath).length === 0) {
-            fs.rmdirSync(userPath);
+            fs.rmSync(userPath, { recursive: true });
           }
         }
         if (fs.readdirSync(remotePath).length === 0) {
-          fs.rmdirSync(remotePath);
+          fs.rmSync(remotePath, { recursive: true });
         }
       }
     },
     saveStatus(jid, msg) {
-      const userJid = msg?.key?.participant;
+      const userJid = msg?.key?.participantAlt;
       const id = msg?.key?.id;
       const isReaction = !!msg.message?.reactionMessage;
       
@@ -128,7 +131,7 @@ function createStore(base = `${databaseDir}/store`) {
           }
         }
         if (fs.readdirSync(fullUserPath).length === 0) {
-          fs.rmdirSync(fullUserPath);
+          fs.rmSync(fullUserPath, { recursive: true });
         }
       }
     }
@@ -139,8 +142,12 @@ function createStore(base = `${databaseDir}/store`) {
 const store = createStore();
 
 setInterval(() => {
-  store.deleteOldMessages();
-  store.deleteOldStatus();
+  try {
+    store.deleteOldMessages();
+    store.deleteOldStatus();
+  } catch (err) {
+    console.error('Erro ao limpar mensagens/status antigos:', err);
+  }
 }, 1000 * 60 * 60); // 1 Hora
 
 module.exports = createStore;

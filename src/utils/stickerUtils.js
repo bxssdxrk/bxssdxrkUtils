@@ -45,14 +45,14 @@ async function convertMediaToSticker(mediaInput, metadata = {}) {
   const options = [
     "-vcodec", "libwebp_anim",
     "-vf", `
-      scale='if(gte(iw,ih),360,-1)':'if(gte(iw,ih),-1,360)',
+      scale='if(gte(iw,ih),300,-1)':'if(gte(iw,ih),-1,300)',
       fps=24,
-      pad=360:360:(ow-iw)/2:(oh-ih)/2:color=white@0.0,
+      pad=300:300:(ow-iw)/2:(oh-ih)/2:color=white@0.0,
       split[a][b];[a]palettegen=reserve_transparent=on:transparency_color=ffffff[p];
       [b][p]paletteuse
     `,
     "-an",
-    "-fs", "750k",
+    "-fs", "650k",
     "-qscale:v", "65",
   ];
   return await processToSticker(mediaInput, metadata, options);
@@ -62,14 +62,14 @@ async function convertMediaToStickerC(mediaInput, metadata = {}) {
   const options = [
     "-vcodec", "libwebp_anim",
     "-vf", `
-      scale='if(gt(iw,ih),-1,360)':'if(gt(iw,ih),360,-1)',
-      crop=360:360:(iw-360)/2:(ih-360)/2,
+      scale='if(gt(iw,ih),-1,300)':'if(gt(iw,ih),300,-1)',
+      crop=300:300:(iw-300)/2:(ih-300)/2,
       fps=24,
       split[a][b];[a]palettegen=reserve_transparent=on:transparency_color=ffffff[p];
       [b][p]paletteuse
     `,
     "-an",
-    "-fs", "750k",
+    "-fs", "650k",
     "-qscale:v", "65",
   ];
   return await processToSticker(mediaInput, metadata, options);
@@ -79,14 +79,14 @@ async function convertMediaToStickerX(mediaInput, metadata = {}) {
   const options = [
     "-vcodec", "libwebp_anim",
     "-vf", `
-      scale=360:360,
+      scale=300:300,
       fps=24,
-      pad=360:360:-1:-1:color=white@0.0,
+      pad=300:300:-1:-1:color=white@0.0,
       split[a][b];[a]palettegen=reserve_transparent=on:transparency_color=ffffff[p];
       [b][p]paletteuse
     `,
     "-an",
-    "-fs", "750k",
+    "-fs", "650k",
     "-qscale:v", "65",
   ];
   return await processToSticker(mediaInput, metadata, options);

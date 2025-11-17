@@ -1,13 +1,11 @@
 const fs = require("fs");
 const path = require("path");
-const { findCommandImport, bxssdxrkLog, onlyNumbers, drawBox, isUserJid, isUserLid, isGroupJid } = require(".");
+const { findCommandImport, bxssdxrkLog, onlyNumbers, drawBox, isJid, isLid, isGroupJid } = require(".");
 const { getGroupMetadata, hasGroupMetadata } = require("./groupCache");
 const { verifyPrefix, hasTypeOrCommand } = require("../middlewares");
 const { checkPermission } = require("../middlewares/checkPermission");
 const { commandPrefixes, commandsDir, allowCommands, shouldLogCommands, debug } = require(`${BASE_DIR}/config`);
 const { Formatter } = require("@loggings/beta");
-
-const commandsMap = new Map();
 
 exports.handleCommand = async (paramsHandler) => {
   const {
@@ -27,6 +25,30 @@ exports.handleCommand = async (paramsHandler) => {
   } = paramsHandler;
   
   const { type, command } = findCommandImport(commandName);
+  
+  const txt = webMessage?.message?.conversation || webMessage?.message?.extendedTextMessage?.text;
+  
+  const meLidResult = await socket.getLidUser(socket.user.id).catch(() => null);
+  const meLid = meLidResult?.[0]?.lid;
+  
+  if (meLid && meLid === userJid && txt?.startsWith('> ')) {
+    // Normaliza o texto antes do eval
+    const code = fullArgs
+      .replace(/^>\s?/, '')     // remove o ">" inicial
+      .replace(/\r\n/g, '\n')   // normaliza as quebras de linha
+      .trim();
+    
+    try {
+      const result = await eval(`(async ({${Object.keys(paramsHandler).join(', ')}}) => { ${code} })`)(paramsHandler);
+      
+      console.log('--- Resultado do eval ---');
+      console.log(result);
+      console.log('-------------------------');
+    } catch (err) {
+      console.error('Erro no eval:', err);
+      await sendErrorReply(err.message);
+    }
+  }
   
   if (!allowCommands || !verifyPrefix(prefix) || !hasTypeOrCommand({ type, command })) {
     return;
@@ -49,15 +71,15 @@ exports.handleCommand = async (paramsHandler) => {
       remoteJid
     ];
     
-    let userId = candidates.find(id => isUserJid(id));
+    let userId = candidates.find(id => isJid(id));
     
     if (!userId) {
-      userId = candidates.find(id => isUserLid(id));
+      userId = candidates.find(id => isLid(id));
     }
     
-    const isJid = isUserJid(userId);
-    const isLid = !isJid && isUserLid(userId);
-    const userNumber = isJid ? onlyNumbers(userId) : null;
+    const isJidID = isJid(userId);
+    const isLidID = !isJidID && isLid(userId);
+    const userNumber = isJidID ? onlyNumbers(userId) : null;
     
     const texts = [
       `Comando: ${prefix}${commandName} (${type})`,
@@ -65,13 +87,13 @@ exports.handleCommand = async (paramsHandler) => {
       `Horário: ${dayAndHour}`,
     ];
     
-    if (debug) {
-      texts.push(`Argumentos: ${args}`);
-    }
+    //  if (debug && args.length > 0) {
+    //    texts.push(`Argumentos: ${args}`);
+    //  }
     
-    if (isJid && userNumber) {
+    if (isJidID && userNumber) {
       texts.push(`Número: ${userNumber}`, `JID: ${userId}`);
-    } else if (isLid) {
+    } else if (isLidID) {
       texts.push(`LID: ${userId}`);
     } else if (userId) {
       texts.push(`ID desconhecido: ${userId}`);
